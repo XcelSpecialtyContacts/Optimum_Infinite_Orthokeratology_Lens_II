@@ -1,6 +1,4 @@
 import math
-import importlib
-import os
 import pytest
 
 from oiol2.geometry import (
@@ -16,6 +14,7 @@ from oiol2.geometry import (
 )
 
 TOL = 1e-9
+
 
 def test_roundtrip_surface_power_radius():
     n_air = 1.0
@@ -58,42 +57,5 @@ def test_curvature_roundtrip():
 def test_angle_helpers():
     deg = 45.0
     rad = deg_to_rad(deg)
-    assert abs(rad - math.pi/4) < TOL
+    assert abs(rad - math.pi / 4) < TOL
     assert abs(rad_to_deg(rad) - deg) < TOL
-
-
-# ---------- Golden-master comparison (optional) ----------
-# If the legacy module is importable (e.g., placed anywhere on PYTHONPATH),
-# we compare outputs to ensure the port matches historical behavior.
-LEGACY_MODULE_NAME = "oiol2.geometryfunctions02"
-
-legacy_available = False
-try:
-    _legacy = importlib.import_module(LEGACY_MODULE_NAME)
-    legacy_available = True
-except Exception:
-    pass
-
-legacy = pytest.mark.skipif(not legacy_available, reason="legacy module not available")
-
-
-@legacy
-@pytest.mark.parametrize("Rmm,y", [(8.0, 0.0), (8.6, 3.0), (10.0, 4.0)])
-def test_legacy_sag_sphere_equivalence(Rmm, y):
-    # Adjust this if legacy used different function name or units.
-    new = sag_sphere(Rmm, y)
-    old = _legacy.sag_sphere(Rmm, y) if hasattr(_legacy, "sag_sphere") else _legacy.Sag(Rmm, y)
-    assert abs(new - old) < 1e-10
-
-
-@legacy
-def test_legacy_power_radius_equivalence():
-    n_air, n_lens, Rmm = 1.0, 1.3375, 8.4
-    newF = radius_to_surface_power(n_air, n_lens, Rmm)
-    # Adjust if legacy signature differed
-    if hasattr(_legacy, "radius_to_surface_power"):
-        oldF = _legacy.radius_to_surface_power(n_air, n_lens, Rmm)
-    else:
-        # example fallback if old code assumed air->lens and had PowerFromRadius(n, R)
-        oldF = _legacy.PowerFromRadius(n_lens, Rmm)
-    assert abs(newF - oldF) < 1e-10

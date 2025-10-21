@@ -23,7 +23,6 @@ Author: oiol2 team
 from __future__ import annotations
 
 import math
-from typing import Iterable, Tuple
 
 # ---- Constants ----------------------------------------------------------------
 
@@ -33,6 +32,7 @@ RAD2DEG: float = 180.0 / math.pi
 
 # ---- Utilities ----------------------------------------------------------------
 
+
 def _safe_sqrt(x: float) -> float:
     """Sqrt that treats tiny negative noise as zero."""
     if x < 0 and x > -1e-12:
@@ -41,7 +41,9 @@ def _safe_sqrt(x: float) -> float:
         raise ValueError(f"sqrt of negative: {x}")
     return math.sqrt(x)
 
+
 # ---- Optics: power <-> radius --------------------------------------------------
+
 
 def radius_to_surface_power(n_medium: float, n_lens: float, radius_mm: float) -> float:
     """
@@ -74,7 +76,9 @@ def surface_power_to_radius(n_medium: float, n_lens: float, power_D: float) -> f
         raise ValueError("power_D must be non-zero")
     return MM_PER_M * (n_lens - n_medium) / power_D
 
+
 # ---- Geometry: sags ------------------------------------------------------------
+
 
 def sag_sphere(radius_mm: float, y_mm: float) -> float:
     """
@@ -108,7 +112,9 @@ def sag_conic(R_mm: float, K: float, y_mm: float) -> float:
     t = (y * y) / (R * R)
     disc = 1.0 - (1.0 + K) * t
     if disc < -1e-12:
-        raise ValueError("Non-real conic sag (discriminant < 0). Reduce y or adjust K/R.")
+        raise ValueError(
+            "Non-real conic sag (discriminant < 0). Reduce y or adjust K/R."
+        )
     denom = R * (1.0 + _safe_sqrt(max(0.0, disc)))
     if denom == 0.0:
         # Extremely edge case; fallback to spherical limit
@@ -120,7 +126,9 @@ def sag_difference_conic_vs_sphere(R_mm: float, K: float, y_mm: float) -> float:
     """Convenience: Δs = s_conic - s_sphere at same R, y."""
     return sag_conic(R_mm, K, y_mm) - sag_sphere(R_mm, y_mm)
 
+
 # ---- Curvature, vertex relationships ------------------------------------------
+
 
 def curvature_from_radius(radius_mm: float) -> float:
     """Curvature c = 1/R (1/mm)."""
@@ -135,7 +143,9 @@ def radius_from_curvature(curvature_per_mm: float) -> float:
         raise ValueError("curvature_per_mm must be non-zero")
     return 1.0 / curvature_per_mm
 
+
 # ---- Angle helpers -------------------------------------------------------------
+
 
 def deg_to_rad(deg: float) -> float:
     return float(deg) * DEG2RAD
@@ -144,9 +154,13 @@ def deg_to_rad(deg: float) -> float:
 def rad_to_deg(rad: float) -> float:
     return float(rad) * RAD2DEG
 
+
 # ---- Toric / meridional helpers (simple forms) --------------------------------
 
-def sag_sphere_meridional(Rx_mm: float, Ry_mm: float, y_mm: float, theta_rad: float) -> float:
+
+def sag_sphere_meridional(
+    Rx_mm: float, Ry_mm: float, y_mm: float, theta_rad: float
+) -> float:
     """
     Sag on an orthogonal bi-spherical surface at angle theta where local radius is:
         R(theta) = 1 / (cos^2(theta)/Rx + sin^2(theta)/Ry)
@@ -159,6 +173,7 @@ def sag_sphere_meridional(Rx_mm: float, Ry_mm: float, y_mm: float, theta_rad: fl
         raise ValueError("Invalid meridional radii for given theta.")
     Rtheta = 1.0 / denom
     return sag_sphere(Rtheta, y_mm)
+
 
 # ---- (Optional) Legacy compatibility shim -------------------------------------
 # If legacy `geometryfunctions02.py` had names like: Sag(), ConicSag(), Curv(), etc.,

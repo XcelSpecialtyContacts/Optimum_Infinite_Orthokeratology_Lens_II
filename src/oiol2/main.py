@@ -17,7 +17,9 @@ except ModuleNotFoundError:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Verify Lab File parsing and compute Front Curve Radius (FCR).")
+    p = argparse.ArgumentParser(
+        description="Verify Lab File parsing and compute Front Curve Radius (FCR)."
+    )
     p.add_argument("--config", "-c", default="config.toml", help="Path to config.toml")
     p.add_argument("--wo", required=True, help="Work order number, e.g., 9359766")
     p.add_argument("--verbose", "-v", action="store_true")
@@ -30,6 +32,7 @@ def setup_logging(verbose: bool) -> None:
 
 
 _num_rx = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
+
 
 def to_float(val: str | float | int, default: float | None = None) -> float:
     """
@@ -59,22 +62,26 @@ def compute_fcr(lab: dict) -> tuple[float, str]:
     Returns: (FCR_mm, method_str)
     """
     # Pull values from parsed lab dict
-    bc_s   = lab.get("BC", {}).get("value", "")
-    pwr_s  = lab.get("Power", {}).get("value", "")
-    ct_s   = lab.get("Min_CT", {}).get("value", "") or lab.get("CT_min", {}).get("value", "")
-    ri_s   = lab.get("Mat_RI", {}).get("value", "")
-    vcode  = lab.get("Vertex_Code", {}).get("value", "")
+    bc_s = lab.get("BC", {}).get("value", "")
+    pwr_s = lab.get("Power", {}).get("value", "")
+    ct_s = lab.get("Min_CT", {}).get("value", "") or lab.get("CT_min", {}).get(
+        "value", ""
+    )
+    ri_s = lab.get("Mat_RI", {}).get("value", "")
+    vcode = lab.get("Vertex_Code", {}).get("value", "")
 
     # Convert to numbers
     BCR = to_float(bc_s)
-    CT  = to_float(ct_s, default=0.0)        # mm
-    RIM = to_float(ri_s)                     # refractive index (unitless)
+    CT = to_float(ct_s, default=0.0)  # mm
+    RIM = to_float(ri_s)  # refractive index (unitless)
 
     # Decide which vertex convention we’re using
     try:
         vcode_int = int(to_float(vcode))
     except Exception:
-        raise ValueError(f"Vertex_Code is missing or invalid: {vcode!r} (expected 1 or 2)")
+        raise ValueError(
+            f"Vertex_Code is missing or invalid: {vcode!r} (expected 1 or 2)"
+        )
 
     if vcode_int == 1:
         # Power is Back Vertex Power (BVP)
@@ -99,7 +106,9 @@ def main() -> int:
 
     print("\n=== LAB FILE PARSE RESULT ===")
     print(f"Work Order: {args.wo}\n")
-    print(f"Lab File Path: {Path(cfg['paths']['labfile_root']) / (cfg['labfile']['prefix'] + str(args.wo))}\n")
+    print(
+        f"Lab File Path: {Path(cfg['paths']['labfile_root']) / (cfg['labfile']['prefix'] + str(args.wo))}\n"
+    )
     print("Extracted Parameters:")
     print("----------------------")
 

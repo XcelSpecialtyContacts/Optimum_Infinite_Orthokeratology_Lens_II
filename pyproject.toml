@@ -15,3 +15,13 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["oiol2*"]
+
+[tool.ruff]
+exclude = [
+  "src/oiol2/geometryfunctions02.py",  # ignore legacy
+]
+
+[tool.coverage.run]
+omit = [
+  "src/oiol2/geometryfunctions02.py",  # ignore legacy in coverage
+]

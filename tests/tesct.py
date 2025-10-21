@@ -1,10 +1,11 @@
 from pathlib import Path
 import pandas as pd
 
+
 def lookup_bc(csv_path: str, flat_k: float, mrs: float) -> float | None:
     """
     Look up the BC value from CRT_SKUs.csv given Flat K and MRS.
-    
+
     Args:
         csv_path (str): Path to the CRT_SKUs.csv file.
         flat_k (float): Flat K value to match.
@@ -24,6 +25,7 @@ def lookup_bc(csv_path: str, flat_k: float, mrs: float) -> float | None:
 
     # Return the first BC value found
     return float(match.iloc[0]["BC"])
+
 
 crt_data_path = Path("data/CRT_SKUs.csv")
 bc = lookup_bc(crt_data_path, 39.0, -4.25)

@@ -14,8 +14,11 @@ EXIT_CODES = {
     "uer": 50,
 }
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Dummy script to simulate OIOL2 exit codes.")
+    parser = argparse.ArgumentParser(
+        description="Dummy script to simulate OIOL2 exit codes."
+    )
     parser.add_argument(
         "--mode",
         required=True,
@@ -31,6 +34,7 @@ def main():
     code = EXIT_CODES[args.mode]
     print(f"[dummy.py] Returning exit code {code}")
     sys.exit(code)
+
 
 if __name__ == "__main__":
     main()

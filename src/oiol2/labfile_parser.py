@@ -2,17 +2,20 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any, Optional
-import logging, re, sys
+import logging
+import re
 
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:
     import tomli as tomllib  # fallback for <=3.10
 
+
 def load_config(cfg_path: str | Path = "config.toml") -> dict:
     p = Path(cfg_path)
-    with p.open('rb') as f:
+    with p.open("rb") as f:
         return tomllib.load(f)
+
 
 def labfile_path_for_wo(cfg: dict, work_order: str | int) -> Path:
     wo = str(work_order).strip()
@@ -21,6 +24,7 @@ def labfile_path_for_wo(cfg: dict, work_order: str | int) -> Path:
     suffix = cfg["labfile"].get("suffix", "")
     fname = f"{prefix}{wo}{suffix}"
     return root / fname
+
 
 def parse_lab_file(
     path: Optional[str | Path],
@@ -52,7 +56,7 @@ def parse_lab_file(
 
     seg_values: Dict[str, str] = {}
     start_idx = max(0, VALUE_COL_START - 1)
-    seg_re = re.compile(r'^\s*([A-Z]?\d{2,3})\b')
+    seg_re = re.compile(r"^\s*([A-Z]?\d{2,3})\b")
 
     for raw_line in p.read_text(errors="replace").splitlines():
         line = raw_line.rstrip("\n\r")
@@ -71,6 +75,7 @@ def parse_lab_file(
 
     logging.info("Loaded Lab File: %s", p)
     return data
+
 
 def load_lab_data(cfg: dict, work_order: str | int) -> dict:
     labfile = labfile_path_for_wo(cfg, work_order)
