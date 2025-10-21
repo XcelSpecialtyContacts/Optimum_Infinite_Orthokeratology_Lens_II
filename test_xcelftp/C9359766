@@ -1,0 +1,139 @@
+007 SIDE                           LEFT
+A10 WO Num                         09359766
+A11 SO Num                         12709933
+020 EQUALENS 2
+030 DOT BLACK
+040 BC1 DIOP                       38.37
+060 BC1 MM                         8.80
+080 Power 1                        +0.75
+110 Diameter                       10.9
+120 Printed Thick                  .24
+161 PC1 W                          .4
+162 PC 1 Flat                      12.238
+163 PC 1 Steep                     12.238
+164 PC2 W                          .7
+165 PC 2 Flat                      8.133
+166 PC 2 Steep                     7.988
+167 PC3 W                          .7
+168 PC 3 Flat                      8.084
+169 PC 3 Steep                     7.971
+173 PC4 W                          .6
+174 PC 4 Flat                      7.418
+175 PC 4 Steep                     7.219
+176 PC5 W
+177 PC 5 Flat
+178 PC 5 Steep
+181 PC6 W
+182 PC 6 Flat
+183 PC 6 Steep
+184 PC7 W
+185 PC 7 Flat
+186 PC 7 Steep
+187 PC8 W
+188 PC 8 Flat
+189 PC 8 Steep
+191 PC9 W
+192 PC 9 Flat
+193 PC 9 Steep
+194 PC10 W
+195 PC 10 Flat
+196 PC 10 Steep
+220 6.1
+221 Lenticular____________________ N
+225
+227 Diagnostic Mark                0
+230 Vertex                         1
+369 DAC PC1 Flat Radius___________ 7.41800
+370 DAC PC1 Steep Radius__________ 7.21900
+371 DAC PC1 Diameter______________ 7.30
+372 DAC PC2_Flat Radius___________ 8.08400
+373 DAC PC2 Steep Radius__________ 7.97100
+374 DAC PC2 Diameter______________ 8.70
+375 DAC PC3 Flat Radius___________ 8.13300
+376 DAC PC3 Steep Radius__________ 7.98800
+377 DAC PC3 Diameter______________ 10.10
+378 DAC PC4 Flat Radius___________ 12.23800
+379 DAC PC4 Steep Radius__________ 12.23800
+380 DAC PC4 Diameter______________ 10.90
+381 DAC PC5 Flat Radius___________ 0
+382 DAC PC5 Steep Radius__________ 0
+383 DAC PC5 Diameter______________ 0
+384 DAC PC6 Flat Radius___________ 0
+385 DAC PC6 Steep Radius__________ 0
+386 DAC PC6 Diameter______________ 0
+387 DAC PC7_Flat Radius___________ 0
+388 DAC PC7 Steep Radius__________ 0
+389 DAC PC7 Diameter______________ 0
+390 DAC PC8 Flat Radius___________ 0
+391 DAC PC8 Steep Radius__________ 0
+392 DAC PC8 Diameter______________ 0
+393 DAC PC9 Flat Radius___________ 0
+394 DAC PC9 Steep Radius__________ 0
+395 DAC PC9 Diameter______________ 0
+396 DAC PC10 Flat Radius__________ 0
+397 DAC PC10 Steep Radius_________ 0
+398 DAC PC10 Diameter_____________ 0
+430 Bevel W_______________________ .5
+431 Bevel TK/JT___________________ .09
+598 Original Sales Order Number___
+606 Plus Thick Calc BOZ___________ 6.1
+617 IOR in Meters_________________ 1.423
+618 Front Curve Optic Zone________ 6.1
+619 Junction Thickness____________ .15
+620 IOR in Millimeters____________ 423
+621 Base Curve Sag Depth @ Base OZ .545455797
+622 Base Curve Sag Depth @ Frnt OZ .545455797
+623 Sag Depth Difference__________ *Calculated
+624 Empirical Front Radius________ *Calculated
+625 Empirical Frt Sag Dpth @Frt OZ *Calculated
+626 Empirical Plus Thickness______ *Calculated
+627 1st Compensated Front Radius__ *Calculated
+628 1st Compensated Frt Sg Dp@FROZ *Calculated
+629 1st Compensated Plus Thickness *Calculated
+630 2nd Compensated Front Radius__ 8.70803
+631 2nd Compensated Frt Sg Dp@FROZ *Calculated
+632 Compensated Plus Thickness____ *Calculated
+633 Lab Lens Material_____________ 427
+635 OE Lens Material______________ 409
+638 OE Lens Type Code_____________ 728
+639 OZ1___________________________ 10.1
+640 OZ2___________________________ 8.7
+641 OZ3___________________________ 7.3
+642 OZ4___________________________ 6.1
+643 Lab Calc Edge Lift____________ 0
+644 Lab Calc Prism________________ 0
+645 Lab Lens Thickness____________ .24
+646 Lab Lens Type Code____________ 45
+647 Lab Edge Radius_______________ .05
+650 REMLENS                        REMLENS
+661 Sag Depth of BC at DIA________ 1.890767047
+663 Calculated Standard Thickness_ .21
+679 BSsag_________________________ .545455797
+695 PC5D__________________________ *Calculated
+696 OZ6___________________________ *Calculated
+744 PERISAG_______________________ 1.390034867
+749 Lab Lenticular________________ L
+779 Flat BC_______________________ 8.80
+780 Steep BC______________________ 8.80
+793 DAC Side______________________ 2
+796 OffsetdiaL____________________ 6.1
+797 OffsetFRsagL__________________ .551603915
+798 SingTK________________________ -.006148118
+799 SingTK w/Prism________________ .206148118
+874 Lab Lens Axis_________________ 0
+875 FOZ2__________________________ 0
+876 Lab Calc Cylinder / JT2 SPH___ 0
+877 Lab Edge Thickness____________ .1
+878 Blend Factor__________________ .9
+879 Uniform Edge Thickness________ 0
+890 FRFVP recalc__________________ 8.724208
+891 Recalc os_____________________ 0
+893 OffsetdiaL____________________ 6.1
+895 OffsetFRsagL__________________ .550512066
+896 Recalc et_____________________ -.005056269
+897 CT____________________________ .205056269
+898 FR____________________________ 8.723894
+964 Design Code___________________ RG11
+979 Prism Offset__________________ 0
+985 File Status___________________ 0
+B10 Lathe Status                   1

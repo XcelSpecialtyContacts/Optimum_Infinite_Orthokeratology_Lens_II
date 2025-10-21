@@ -1,0 +1,72 @@
+{
+  "Lenses_Parameters_Range": {
+    "D": {
+      "Description": "Lens diamter",
+      "min": 9.5,
+      "max": 12,
+      "units": "mm"
+    },
+    "BC": {
+      "Description": "Central Base Curve Radius",
+      "min": 6.5,
+      "max": 10.5,
+      "units": "mm"
+    },
+    "OZ": {
+      "Description": "Optical Zone Semi Chord",
+      "min": 2.5,
+      "max": 3.5,
+      "units": "mm"
+    },
+    "W": {
+      "Description": "Return Zone Width",
+      "min": 0.75,
+      "max": 1.5,
+      "units": "mm"
+    },
+    "Delta": {
+      "Description": "Return Zone Depth",
+      "min": 0.001,
+      "max": 1.0,
+      "units": "mm"
+    },
+    "RR": {
+      "Description": "Return Zone Radius",
+      "min": 0.001,
+      "max": "inf",
+      "units": "mm"
+    },
+    "LZA": {
+      "Description": "Landing Zone Angle",
+      "min": 25,
+      "max": 50,
+      "units": "degrees"
+    },
+    "LZW": {
+      "Description": "Landing Zone Width",
+      "min": 0.5,
+      "max": 2.75,
+      "units": "mm"
+    },
+    "P": {
+      "Description": "Peripheral Edge Curve Width",
+      "min": 0.04,
+      "max": "inf",
+      "units": "mm"
+    },
+    "DP": {
+      "Description": "Dioptric Powers",
+      "min": -2.00,
+      "max": 2.00,
+      "units": "Diopter"
+    }
+  },
+  "LZA_Ranges": [
+    { "StartFlatK": 39.00, "EndFlatK": 39.87, "LZA": 31 },
+    { "StartFlatK": 40.00, "EndFlatK": 42.00, "LZA": 32 },
+    { "StartFlatK": 42.12, "EndFlatK": 44.12, "LZA": 33 },
+    { "StartFlatK": 44.25, "EndFlatK": 46.25, "LZA": 34 },
+    { "StartFlatK": 43.37, "EndFlatK": 48.37, "LZA": 35 },
+    { "StartFlatK": 48.50, "EndFlatK": 50.00, "LZA": 36 }
+  ]
+}

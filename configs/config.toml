@@ -1,0 +1,68 @@
+[paths]
+# Root directory where Lab Files live (sample you showed uses files like "C9359766")
+labfile_root = 'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_t_drive'
+
+[labfile]
+# How to turn a work order into a filename. Ex: C + 9359766 -> "C9359766"
+prefix = 'C'
+suffix = ''
+value_col_start = 36  # matches your parser default
+
+# What fields we need to extract (you already have several of these)
+[lab_fields.BC]        # Base curve radius (mm) or keratometric equivalent in your file
+seg = '060'
+title = 'Base Curve'
+
+[lab_fields.Dia]
+seg = '110'
+title = 'Diameter'
+
+[lab_fields.Power]
+seg = '080'
+title = 'Power'
+
+[lab_fields.Min_CT]
+seg = '645'
+title = 'Min. CT'
+
+[lab_fields.Min_JT1]
+seg = '619'
+title = 'Min. JT1'
+
+[lab_fields.Mat_RI]
+seg = '617'
+title = 'Material Refractive Index'
+
+[lab_fields.Vertex_Code]
+seg = '230'
+title = 'Vertex Code'
+
+[lab_fields.BCOZ_Dia]
+seg = '606'
+title = 'BCOZ Diameter'
+
+[lab_fields.FCOZ_Dia]
+seg = '618'
+title = 'FCOZ Diameter'
+
+# Add more as needed; you already added CT_min and JT_min, etc.
+
+[generation]
+# Geometry + sampling
+meridians = [0, 90, 180, 270]  # degrees
+radial_step_mm = 0.05          # step from center outwards (mm)
+edge_radius_mm = 5.45          # half of lens diameter; overwritten from Lab File if present
+# use_labfile_diameter overrides edge_radius_mm when present and valid
+use_labfile_diameter = true
+
+# Callables in geometryfunctions02 we'll try to import; else fallback to spherical
+anterior_callable = 'anterior_sag'  # def anterior_sag(r_mm: float, theta_deg: float, params: dict) -> float
+interior_callable = 'interior_sag'  # def interior_sag(r_mm: float, theta_deg: float, params: dict) -> float
+
+[output]
+dir = 'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\output'
+file_stem_pattern = '{wo}_{surface}'  # {surface} in {'anterior','interior'}
+# A flexible line format so you can match DAC ALM easily (change spacing/precision if needed)
+point_format = '{x:.4f}\t{z:.4f}'
+header = '# WO={wo} SURFACE={surface} MERIDIAN={theta}\n# X(mm)\tZ(mm)\n'
+footer = ''
