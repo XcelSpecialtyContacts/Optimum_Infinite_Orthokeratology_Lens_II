@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oiol2"
+version = "0.0.1"
+requires-python = ">=3.11"
+description = "Optimum Infinite Orthokeratology Lens II core modules"
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oiol2*"]
