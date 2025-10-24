@@ -77,6 +77,60 @@ def surface_power_to_radius(n_medium: float, n_lens: float, power_D: float) -> f
     return MM_PER_M * (n_lens - n_medium) / power_D
 
 
+# ---- Front curve radius calculations ------------------------------------------
+
+# ---- Front curve radius calculations ------------------------------------------
+
+def front_curve_radius_from_vertex_power(
+    power_D: float,
+    base_curve_radius_mm: float,
+    refr_index_lens: float,
+    center_thickness_mm: float,
+    mode: int,
+) -> float:
+    """
+    Compute the Front Curve Radius (mm) for a lens given vertex power type.
+
+    Args:
+        power_D (float): Lens power in diopters.
+        base_curve_radius_mm (float): Base (back) curve radius in mm.
+        refr_index_lens (float): Refractive index of the lens material.
+        center_thickness_mm (float): Center thickness in mm.
+        mode (int): 1 = Back Vertex Power, 2 = Front Vertex Power.
+
+    Returns:
+        float: Front surface radius in mm.
+
+    Raises:
+        ValueError: If mode is not 1 or 2.
+
+    Notes:
+        Based on standard thick-lens formulas. RIA (index of air) = 1.0.
+    """
+    RIA = 1.0  # refractive index of air
+    k = 0.001  # mm → m conversion
+
+    BCR = float(base_curve_radius_mm)
+    RIM = float(refr_index_lens)
+    CT = float(center_thickness_mm)
+    PWR = float(power_D)
+
+    # Base curve power (air → lens)
+    BCD = (RIA - RIM) / (BCR * k)
+
+    if mode == 1:
+        # --- From Back Vertex Power (BVP) ---
+        FCD = (RIM * (PWR - BCD)) / (RIM - BCD * CT * k + PWR * CT * k)
+    elif mode == 2:
+        # --- From Front Vertex Power (FVP) ---
+        FCD = PWR - BCD / (1.0 - (CT * k / RIM) * BCD)
+    else:
+        raise ValueError(f"Invalid mode value: {mode}. Use 1 (BVP) or 2 (FVP).")
+
+    # Convert front curve dioptric power to radius (mm)
+    FCR = (RIM - RIA) / (FCD * k)
+    return FCR
+
 # ---- Geometry: sags ------------------------------------------------------------
 
 

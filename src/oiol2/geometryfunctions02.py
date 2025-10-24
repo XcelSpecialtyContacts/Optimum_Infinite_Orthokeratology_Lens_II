@@ -93,9 +93,9 @@ def CentersFrom2PtsAndR(xI, yI, xII, yII, r):
 def BackVertexPower(BCR, FCR, RIM, CT):
     # This calculates the Back Vertex Power in diopters given the base
     # curve radius (BCR) in mm, the front curve radius (FCR) in mm, the
-    # refactive index of the lens material (RIM), and the center
+    # refractive index of the lens material (RIM), and the center
     # thickness of the lens (CT) in mm.
-    RIA = 1  # refactive index of air
+    RIA = 1  # refractive index of air
     k = 0.001  # units factor
     FCD = (RIM - RIA) / (FCR * k)  # Front Curve in diopters
     BCD = (RIA - RIM) / (BCR * k)  # Base Curve in diopters
@@ -105,9 +105,9 @@ def BackVertexPower(BCR, FCR, RIM, CT):
 def FCRFromBVP(BVP, BCR, RIM, CT):
     # This calculates the Front Curve Radius in mm given the Back Vertex
     # Power (BVP) in diopters, the base curve radius (BCR) in mm, the
-    # refactive index of the lens material (RIM), and the center
+    # refractive index of the lens material (RIM), and the center
     # thickness of the lens (CT) in mm.
-    RIA = 1  # refactive index of air
+    RIA = 1  # refractive index of air
     k = 0.001  # units factor
     BCD = (RIA - RIM) / (BCR * k)  # Base Curve in diopters
     FCD = (RIM * (BVP - BCD)) / (
@@ -119,9 +119,9 @@ def FCRFromBVP(BVP, BCR, RIM, CT):
 def FrontVertexPower(BCR, FCR, RIM, CT):
     # This calculates the Front Vertex Power in diopters given the base
     # curve radius (BCR) in mm, the front curve radius (FCR) in mm, the
-    # refactive index of the lens material (RIM), and the center
+    # refractive index of the lens material (RIM), and the center
     # thickness of the lens (CT) in mm.
-    RIA = 1  # refactive index of air
+    RIA = 1  # refractive index of air
     k = 0.001  # units factor
     FCD = (RIM - RIA) / (FCR * k)  # Front Curve in diopters
     BCD = (RIA - RIM) / (BCR * k)  # Base Curve in diopters
@@ -131,9 +131,9 @@ def FrontVertexPower(BCR, FCR, RIM, CT):
 def FCRFromFVP(FVP, BCR, RIM, CT):
     # This calculates the Front Curve Radius in mm given the Front
     # Vertex Power (FVP) in diopters, the base curve radius (BCR) in mm,
-    # the refactive index of the lens material (RIM), and the center
+    # the refractive index of the lens material (RIM), and the center
     # thickness of the lens (CT) in mm.
-    RIA = 1  # refactive index of air
+    RIA = 1  # refractive index of air
     k = 0.001  # units factor
     BCD = (RIA - RIM) / (BCR * k)  # Base Curve in diopters
     FCD = FVP - BCD / (1 - (CT * k / RIM) * BCD)  # Front Curve in diopters

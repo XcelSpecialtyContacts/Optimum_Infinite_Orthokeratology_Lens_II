@@ -1,0 +1,151 @@
+007 SIDE                           RIGHT
+A10 WO Num                         09312150
+A11 SO Num                         12680282
+040 BC1 DIOP                       40.12
+060 BC1 MM                         8.40
+080 Power 1                        +3.00
+110 Diameter                       9.5
+120 Printed Thick                  .26
+130 PC1 W                          .30
+140 PC1                            12.25
+150 PC2 W                          .45
+160 PC2                            9.40
+161 xcel.lens.diameter             10.5
+162 xcel.center.thickness          0.23
+163 central_base_curve_radius      8.70
+164 optics.central_zone_diameter   6.0
+165 xcel.return_zone.depth.flat    0.525
+166 xcel.return_zone.depth.steep   0.525
+167 xcel.landing_zone.angle.flat   33
+168 xcel.landing_zone.angle.steep  33
+169 per_edge_curve.depth.flat      0.07
+170 per_edge_curve.depth.steep     0.07
+171 xcel.edge.thickness            0.11
+172 xcel.power.vertex              +0.75
+173 ALM.material.code              438
+174 material.refractive.index      1.438
+221 Lenticular____________________ Y
+227 Diagnostic Mark                0
+230 Vertex                         2
+369 DAC PC1_______________________ 9.4
+370 DAC PC1 Steep Radius__________ 9.4
+371 DAC PC1 Diameter______________ 8.9
+372 DAC PC2_______________________ 12.25
+373 DAC PC2 Steep Radius__________ 12.25
+374 DAC PC2 Diameter______________ 9.5
+375 DAC PC3_______________________ 0
+376 DAC PC3 Steep Radius__________ 0
+377 DAC PC3 Diameter______________ 0
+378 DAC PC4_______________________ 0
+379 DAC PC4 Steep Radius__________ 0
+380 DAC PC4 Diameter______________ 0
+381 DAC PC5_______________________ 0
+382 DAC PC5 Steep Radius__________ 0
+383 DAC PC5 Diameter______________ 0
+384 DAC PC6_______________________ 0
+385 DAC PC6 Steep Radius__________ 0
+386 DAC PC6 Diameter______________ 0
+387 DAC PC7_______________________ 0
+388 DAC PC7 Steep Radius__________ 0
+389 DAC PC7 Diameter______________ 0
+390 DAC PC8_______________________ 0
+391 DAC PC8 Steep Radius__________ 0
+392 DAC PC8 Diameter______________ 0
+393 DAC PC9_______________________ 0
+394 DAC PC9 Steep Radius__________ 0
+395 DAC PC9 Diameter______________ 0
+396 DAC PC10______________________ 0
+397 DAC PC10 Steep Radius_________ 0
+398 DAC PC10 Diameter_____________ 0
+430 Bevel Width___________________ .5
+431 Bevel TK/JT___________________ .09
+606 Plus Thick Calc BOZ___________ 8
+617 IOR in Meters_________________ 1.415
+618 Front Curve Optic Zone________ 8
+619 Junction Thickness____________ .15
+620 IOR in Millimeters____________ 415
+621 Base Curve Sag Depth @ Base OZ 1.013525875
+622 Base Curve Sag Depth @ Frnt OZ 1.013525875
+623 Sag Depth Difference__________ 0
+624 Empirical Front Radius________ 7.919127669
+625 Empirical Frt Sag Dpth @Frt OZ 1.08446725
+626 Empirical Plus Thickness______ .270941375
+627 1st Compensated Front Radius__ 7.989714
+628 1st Compensated Frt Sg Dp@FROZ 1.073390569
+629 1st Compensated Plus Thickness .26
+630 2nd Compensated Front Radius__ 7.986865
+631 2nd Compensated Frt Sg Dp@FROZ 1.073832921
+632 Compensated Plus Thickness____ .26
+633 Lab Lens Material_____________ 419
+635 OE Lens Material______________ 415
+638 OE Lens Type Code_____________ 10
+639 OZ1___________________________ 8.9
+640 OZ2___________________________ 8
+641 OZ3___________________________ *Calculated
+642 OZ4___________________________ *Calculated
+643 Lab Calc Edge Lift____________ .110368325
+644 Lab Calc Prism________________ 0
+645 Lab Lens Thickness____________ .26
+646 Lab Lens Type Code____________ 7
+647 Lab Edge Radius_______________ .045
+650 SPHERICAL                      SPHERICAL
+661 Sag Depth of BC at DIA________ *Calculated
+662 Sag Depth of BC at BC OZ______ 1.013525875
+663 Calculated Standard Thickness_ .260307046
+679 Back Surface Sag Depth________ *Calculated
+680 Finish Chord__________________ *Calculated
+681 BC Periphery Sag Depth________ *Calculated
+682 PFIN__________________________ *Calculated
+683 BC Periphery Angle in Radians_ *Calculated
+684 BC Periphery Angle in Degrees_ *Calculated
+685 Estimated Edge Thickness______ *Calculated
+686 Front Surface Sag Depth_______ *Calculated
+687 Front Surface Periphery Chord_ *Calculated
+688 A2____________________________ *Calculated
+689 Front Curve Periphery Angle___ *Calculated
+690 FC vs BC Periphery Angle Diff_ *Calculated
+691 FC vs BC Per Angle Diff in RAD *Calculated
+692 Edge Thickness Compensation___ *Calculated
+693 Target Edge Thickness_________ *Calculated
+694 Final Compensated Thickness___ *Calculated
+695 OZ5___________________________ *Calculated
+696 OZ6___________________________ *Calculated
+744 Perisag_______________________ .348082994
+749 Lab Lenticular________________ Y
+753 EDIT ONLY Min Geo EL__________ 0
+754 EDIT ONLY Max Geo EL__________ .458451319
+755 EDIT ONLY BCSAGDIA____________ 1.471977194
+756 EDIT ONLY BCSAGBOZ____________ 1.013525875
+757 EDIT ONLY Min Clinical EL_____ .045845131
+758 EDIT ONLY Max Clinical EL_____ .320915923
+779 Base Curve____________________ 8.4
+780 Steep Base Curve______________ 8.4
+793 DAC Side______________________ 2
+796 OffsetdiaL____________________ *Calculated
+797 OffsetFRsagL__________________ *Calculated
+798 SingTK________________________ *Calculated
+799 SingTK w/Prism________________ *Calculated
+874 Lab Lens Axis_________________ 0
+875 FOZ2__________________________ 0
+876 Lab Calc Cylinder / JT2 SPH___ 0
+877 Edge Thickness________________ .09
+878 Blend Factor__________________ .9
+879 Uniform Edge Thickness________ 0
+890 FRFVP recalc__________________ *Calculated
+891 Recalc os_____________________ *Calculated
+893 OffsetdiaL____________________ *Calculated
+895 OffsetFRsagL__________________ *Calculated
+896 Recalc et_____________________ *Calculated
+897 CT____________________________ *Calculated
+898 FR____________________________ *Calculated
+964 Design Code___________________ SPH1
+979 Prism Offset__________________ *Calculated
+981 Lab Msg                        #N#
+983 Use Curves____________________ N
+984 JT Test_______________________ .199692954
+985 File Status___________________ 0000
+B10 Lathe Status                   3
+L75 OD / OS                        OD
+L80 Job Tray Number                4395
+L90 LOGIN TIMESTAMP                08-28-2025 16:37:50
+L99 BCSTATUS                       8.371

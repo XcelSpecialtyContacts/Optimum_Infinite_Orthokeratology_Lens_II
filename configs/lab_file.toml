@@ -1,0 +1,63 @@
+# Where the value column begins in the Lab File (optional, your parser takes this as a function arg)
+# value_col_start = 36
+
+# ---------- Lab file fields ----------
+[lab_fields.Dia]
+seg = '161'
+title = 'Diameter'
+
+[lab_fields.CT]
+seg = '162'
+title = 'Center Thickness'
+
+[lab_fields.BC]
+seg = '163'
+title = 'Base Curve'
+
+[lab_fields.BCOZDia]
+seg = '164'
+title = 'Base Curve OZ Diameter'
+
+[lab_fields.RZDFlat]
+seg = '165'
+title = 'Return Zone Depth Flat Axis'
+
+[lab_fields.RZDSteep]
+seg = '166'
+title = 'Return Zone Depth Steep Axis'
+
+[lab_fields.LZAFlat]
+seg = '167'
+title = 'Landing Zone Angle Flat Axis'
+
+[lab_fields.LZASteep]
+seg = '168'
+title = 'Landing Zone Angle Steep Axis'
+
+[lab_fields.PECDFlat]
+seg = '169'
+title = 'peripheral Edge Curve Depth Flat Axis'
+
+[lab_fields.PECDSteep]
+seg = '170'
+title = 'peripheral Edge Curve Depth Steep Axis'
+
+[lab_fields.ET]
+seg = '171'
+title = 'Edge Thickness'
+
+[lab_fields.Power]
+seg = '172'
+title = 'Power'
+
+[lab_fields.ALMMatCode]
+seg = '173'
+title = 'ALM Material Code'
+
+[lab_fields.RI]
+seg = '174'
+title = 'Material Refractive Index'
+
+[lab_fields.Vertex]
+seg = '230'
+title = 'Vertex Back or Front'

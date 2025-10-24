@@ -1,0 +1,15 @@
+# Where the value column begins in the Lab File (optional, your parser takes this as a function arg)
+# value_col_start = 36
+
+# ---------- Lab file fields ----------
+[lab_fields.BC]
+seg = '060'
+title = 'Base Curve'
+
+[lab_fields.Dia]
+seg = '110'
+title = 'Diameter'
+
+[lab_fields.Power]
+seg = '080'
+title = 'Power'

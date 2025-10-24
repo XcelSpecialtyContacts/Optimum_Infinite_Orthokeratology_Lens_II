@@ -1,0 +1,106 @@
+# data/lens_design.toml
+# ------------------------------------------------------------------------------
+
+[meta]
+design_name = "Optimum Infinite Orthokeratology Lenses II"
+partner = "Contamac"
+owner = "X-Cel Specialty Contacts"
+material = "Optimum Infinite (tisilfocon A)"
+version_partner = "1.0.0"
+version_xcel = "1.0.0"
+units_convention = "mm, diopters (D), degrees (deg)"
+
+# ------------------------------------------------------------------------------
+# X-CEL — PRODUCTION DESIGN (defaults/specs)
+# ------------------------------------------------------------------------------
+[lens.diameter]
+units = "mm"
+default = 10.5
+min = 9.5
+max = 12.0
+step = 0.1
+
+[center_zone.thickness]
+units = "mm"
+default = 0.24
+min = 0.09
+max = 0.50
+step = 0.01
+
+[center_zone.junction_thickness]
+units = "mm"
+default = 0.18
+min = 0.18
+max = 1.00
+step = 0.01
+
+[optics.central_base_curve_radius]
+units = "mm"
+default = 8.40
+min = 6.50
+max = 10.50
+step = 0.01
+
+[optics.central_zone_diameter]
+units = "mm"
+default = 6.0
+min = 5.0
+max = 7.0
+step = 0.1
+
+[return_zone.width]
+units = "mm"
+default = 1.0
+min = 1.0
+max = 1.0
+step = 0.0
+
+[return_zone.depth]
+units = "mm"
+default = 0.30
+min = 0.00
+max = 1.00
+step = 0.01
+
+[landing_zone.angle]
+units = "deg"
+default = 34
+min = 25
+max = 50
+step = 1
+
+[landing_zone.width]
+units = "mm"
+default = 1.60
+min = 0.50
+max = 2.75
+step = 0.01
+
+[peripheral_edge_curve.depth]
+units = "mm"
+default = 0.07
+min = 0.04
+max = 0.1
+step = 0.01
+
+[peripheral_edge_curve.width]
+units = "mm"
+default = 0.40
+min = 0.40
+max = 0.40
+step = 0.0
+
+[edge.thickness]
+units = "mm"
+default = 0.11
+min = 0.11
+max = 0.11
+step = 0.0
+
+[power.vertex]
+units = "D"
+default = 0.75
+min = -2.00
+max = 2.00
+step = 0.25
+

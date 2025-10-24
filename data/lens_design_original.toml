@@ -1,0 +1,255 @@
+# data/lens_design.toml
+# ------------------------------------------------------------------------------
+# Layers:
+#   [contamac.*]  -> partner HARD constraints (must NEVER be exceeded)
+#   [xcel.*]      -> production defaults/specs used by X-Cel (must lie within contamac)
+# ------------------------------------------------------------------------------
+
+[meta]
+design_name = "Optimum Infinite Orthokeratology Lenses II"
+partner = "Contamac"
+owner = "X-Cel Specialty Contacts"
+material = "Optimum Infinite (tisilfocon A)"
+version_partner = "1.0.0"
+version_xcel = "1.0.0"
+units_convention = "mm, diopters (D), degrees (deg)"
+
+[validation]
+policy = "xcel ⊆ contamac"   # X-Cel ranges must be subset of Contamac’s
+on_violation = "error"        # set "warn" during pilot if desired
+
+# ------------------------------------------------------------------------------
+# 1) CONTAMAC — HARD CONSTRAINTS (never exceed)
+# ------------------------------------------------------------------------------
+[contamac.patient.spherical_error]
+units = "D"
+min = -6.00
+max = -0.25
+step = 0.25
+bounded = true
+
+[contamac.patient.cylinder_error]
+units = "D"
+min = -1.75
+max = 0.00
+step = 0.25
+bounded = true
+
+[contamac.lens.diameter]
+units = "mm"
+min = 9.5
+max = 12.0
+step = 0.1
+bounded = true
+
+[contamac.center.thickness]
+units = "mm"
+bounded = false   # no explicit constraint from partner
+
+[contamac.optics.central_base_curve_radius]
+units = "mm"
+min = 6.50
+max = 10.50
+step = 0.01
+bounded = true
+
+[contamac.optics.optical_zone_semi_chord]
+units = "mm"
+min = 2.50
+max = 3.50
+step = 0.01
+bounded = true
+
+[contamac.return_zone.width]
+units = "mm"
+min = 0.75
+max = 1.50
+step = 0.01
+bounded = true
+
+[contamac.return_zone.depth]
+units = "mm"
+min = 0.00
+max = 1.00
+step = 0.01
+bounded = true
+
+[contamac.return_zone.radius]
+units = "mm"
+bounded = false   # no explicit bound
+
+[contamac.landing_zone.angle]
+units = "deg"
+min = 25
+max = 50
+step = 1
+bounded = true
+
+[contamac.landing_zone.width]
+units = "mm"
+min = 0.50
+max = 2.75
+step = 0.01
+bounded = true
+
+[contamac.peripheral_edge_curve.width]
+units = "mm"
+min = 0.04
+bounded = true
+
+[contamac.power.vertex]
+units = "D"
+min = -2.00
+max = 2.00
+step = 0.25
+bounded = true
+
+# ------------------------------------------------------------------------------
+# 2) X-CEL — PRODUCTION DESIGN (defaults/specs)  -> must be within contamac
+# ------------------------------------------------------------------------------
+[xcel.patient.spherical_error]
+units = "D"
+min = -6.00
+max = -0.25
+step = 0.25
+adjustable = true
+
+[xcel.patient.cylinder_error]
+units = "D"
+min = -1.75
+max = 0.00
+step = 0.25
+adjustable = true
+
+[xcel.lens.diameter]
+units = "mm"
+default = 10.5
+min = 9.5
+max = 12.0
+step = 0.1
+adjustable = true
+note = "ECP adjustable in 0.1 mm."
+
+[xcel.center.thickness]
+units = "mm"
+default = 0.24
+min = 0.09
+max = 0.50
+step = 0.01
+adjustable = true
+
+[xcel.center.junction_thickness_min]
+units = "mm"
+default = 0.18
+min = 0.18
+max = 1.00
+step = 0.01
+adjustable = false   # manufacturing minimum, not user-adjustable
+
+[xcel.optics.central_base_curve_radius]
+# Chosen initially from flat K & spherical error; then adjustable in 0.125 D steps.
+units = "mm"
+default = 8.40
+min = 6.50
+max = 10.50
+step = 0.01
+adjustable = true
+coupled_dioptric_step_D = 0.125
+selection_rule = "initial from flat K & spherical error"
+
+[xcel.optics.central_zone_diameter]
+units = "mm"
+default = 6.0
+min = 5.0
+max = 7.0
+step = 0.1
+adjustable = true
+
+[xcel.optics.optical_zone_semi_chord]
+units = "mm"
+default = 3.0
+min = 2.50
+max = 3.50
+step = 0.01
+derived = true
+adjustable = false
+# IMPORTANT: formula uses full TOML path of referenced key
+formula = "0.5 * xcel.optics.central_zone_diameter"
+
+[xcel.return_zone.width]
+units = "mm"
+default = 1.0
+min = 1.0
+max = 1.0
+step = 0.0
+adjustable = false   # fixed per spec
+
+[xcel.return_zone.depth]
+units = "mm"
+default = 0.30
+min = 0.00
+max = 1.00
+step = 0.01
+adjustable = true
+selection_rule = "initial from flat K & spherical error"
+
+[xcel.return_zone.radius]
+units = "mm"
+derived = true
+adjustable = false
+bounded = false
+note = "Derived from geometry; no explicit bound."
+
+[xcel.landing_zone.angle]
+units = "deg"
+default = 34
+min = 25
+max = 50
+step = 1
+adjustable = true
+selection_rule = "initial from flat K & spherical error"
+
+[xcel.landing_zone.width]
+units = "mm"
+default = 1.60
+min = 0.50
+max = 2.75
+step = 0.01
+derived = true
+adjustable = false
+note = "Calculated; override rarely needed."
+
+[xcel.peripheral_edge_curve.depth]
+units = "mm"
+default = 0.21
+min = 0.16
+max = 0.23
+step = 0.01
+adjustable = true
+note = "0.21 ≈ ~11.5 mm peripheral curve radius."
+
+[xcel.peripheral_edge_curve.width]
+units = "mm"
+default = 0.40
+min = 0.40
+max = 0.40
+step = 0.0
+adjustable = false
+# Instead of an invalid operator, use a reference we’ll enforce in code:
+min_ref = "contamac.peripheral_edge_curve.width.min"
+
+[xcel.edge.thickness]
+units = "mm"
+default = 0.11
+min = 0.11
+max = 0.11
+step = 0.0
+adjustable = false
+
+[xcel.power.vertex]
+units = "D"
+default = 0.75
+min = -2.00
+max = 2.00
+step = 0.25
+adjustable = true
