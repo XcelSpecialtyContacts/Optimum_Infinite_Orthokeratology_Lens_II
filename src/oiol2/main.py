@@ -26,6 +26,11 @@ except ModuleNotFoundError:  # pragma: no cover
 # Load modules specific to this project
 from oiol2.vis.plotting import plot_meridional_curves, Curve
 from oiol2.geometry.meridional import generate_optic_zone_meridional
+from oiol2.geometry_core import slope_and_angle_of_line_tangent_to_curve
+from oiol2.geometry_core import y_intercept
+from oiol2.geometry_core import front_curve_radius_from_vertex_power
+from oiol2.geometry_core import conic_line_intersections
+from oiol2.geometry_core import distance_between_points
 
 # -----------------------
 # Data models (typed)
