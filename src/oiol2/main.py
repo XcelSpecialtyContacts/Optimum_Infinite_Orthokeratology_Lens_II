@@ -1,12 +1,22 @@
 # src/oiol2/main.py
 from __future__ import annotations
 
+import pathlib, sys
+# Add <repo>/src to sys.path so 'oiol2' is importable when running from repo root
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 import argparse
 import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Optional
+
+import numpy as np
+import re
 
 try:
     import tomllib  # Python 3.11+
@@ -67,6 +77,8 @@ class LensDesign:
 # -----------------------
 # Helpers
 # -----------------------
+
+_number_re = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)")
 
 def repo_root_from_this_file() -> Path:
     """
@@ -203,6 +215,25 @@ def validate_and_build(cfg: dict[str, Any]) -> AppConfig:
             vertex_code=vertex_code,
         ),
     )
+
+def _to_float(v) -> float:
+    """
+    Coerce Lab File values to float.
+    Accepts:
+      - float/int
+      - strings like '8.70', '+0.75', '  10.5 mm', etc.
+      - dicts like {'value': '8.70'} or {'value': 8.70}
+    Raises ValueError if no numeric content is found.
+    """
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, dict) and "value" in v:
+        return _to_float(v["value"])
+    s = str(v).strip()
+    m = _number_re.search(s)
+    if not m:
+        raise ValueError(f"Cannot parse numeric value from: {v!r}")
+    return float(m.group(0))
 
 def _coerce_float(name: str, v: Any) -> float:
     try:
@@ -447,6 +478,65 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("\n%s", summarize_lab_result(lab_data))
 
     optic_zone_points = generate_optic_zone_meridional(lab_data)
+
+    ########################
+    # Sandbox for developing code
+    # Development: Optic zone bounday junction thickness
+
+    # Parameters for calculating the normal line at the edge of the treatment/optic zone
+    R0 = _to_float(lab_data["BC"])
+    K = 0 # treatment/optic zone is always a sphere for this design so K will be 0
+    x_start = 0.0 # center of the treatment/optic zone
+    x_end = _to_float(lab_data["BCOZDia"]) / 2 # the edge of the treatment/optic zone
+
+    # Create x values
+    x = np.linspace(x_start, x_end, 500)
+
+    # Compute y values, ensuring the sqrt argument stays valid
+    sqrt_term = R0**2 - x**2 * (K + 1)
+    valid_mask = sqrt_term >= 0
+    x_valid = x[valid_mask]
+    y_valid = x_valid**2 / (R0 + np.sqrt(sqrt_term[valid_mask]))
+
+    # === Compute and tangent line at x_end ===
+    m_tangent_end, _, _ = slope_and_angle_of_line_tangent_to_curve(x_end, R0, K)
+
+    # Calculate the y-value at x_end on the conic
+    y_end = x_end**2 / (R0 + np.sqrt(R0**2 - x_end**2 * (K + 1)))
+
+    # Compute slope of line norml to tangent line
+    m_normal_end = -1/m_tangent_end
+
+    # Calculate the y-intercept (b_normal_end)
+    b_normal_end = y_intercept(x_end, y_end, m_normal_end)
+
+    # Establish the initial center thickness value
+    ct_init = _to_float(lab_data["CT"])
+
+    # A
+    # Calculate the initial radius for the front surface for the optic/treatment zone
+    FCR_init = front_curve_radius_from_vertex_power(_to_float(lab_data["Power"]), _to_float(lab_data["BC"]), _to_float(lab_data["RI"]), ct_init, _to_float(lab_data["Vertex"]))
+
+    # B
+    # Calculate the junction thickness at the edge of the treatment/optic zone
+    p1 = (x_end, y_end)
+    intersection_points = conic_line_intersections(m_normal_end, b_normal_end, FCR_init, 0, _to_float(lab_data["CT"]))
+    p2 = intersection_points[0]
+    jt_int = distance_between_points(p1, p2)
+
+    print(f"Calculated JT is {jt_int} with a CT of {_to_float(lab_data['CT'])}.")
+    print(f"The minimum JT is {lens_design.params['center_zone.junction_thickness'].min}.")
+
+    # C
+    # If jt_int < lens_design.params['center_zone.junction_thickness'].min then
+    #   ct_init = ct_init + 0.001
+    #   Go back to A and re-compute FCR_init, and jt_int.
+    # Else
+    #   FCR = FCR_init
+    #   CT = ct_init
+    #   JT1 = jt_init
+
+    ########################
     
     ########################
     # Plot the curves

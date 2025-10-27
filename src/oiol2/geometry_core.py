@@ -23,6 +23,7 @@ Author: oiol2 team
 from __future__ import annotations
 
 import math
+import sympy as sp
 
 # ---- Constants ----------------------------------------------------------------
 
@@ -79,8 +80,6 @@ def surface_power_to_radius(n_medium: float, n_lens: float, power_D: float) -> f
 
 # ---- Front curve radius calculations ------------------------------------------
 
-# ---- Front curve radius calculations ------------------------------------------
-
 def front_curve_radius_from_vertex_power(
     power_D: float,
     base_curve_radius_mm: float,
@@ -133,7 +132,6 @@ def front_curve_radius_from_vertex_power(
 
 # ---- Geometry: sags ------------------------------------------------------------
 
-
 def sag_sphere(radius_mm: float, y_mm: float) -> float:
     """
     Sag of a spherical surface of radius R at semi-chord y.
@@ -183,7 +181,6 @@ def sag_difference_conic_vs_sphere(R_mm: float, K: float, y_mm: float) -> float:
 
 # ---- Curvature, vertex relationships ------------------------------------------
 
-
 def curvature_from_radius(radius_mm: float) -> float:
     """Curvature c = 1/R (1/mm)."""
     if radius_mm == 0:
@@ -200,7 +197,6 @@ def radius_from_curvature(curvature_per_mm: float) -> float:
 
 # ---- Angle helpers -------------------------------------------------------------
 
-
 def deg_to_rad(deg: float) -> float:
     return float(deg) * DEG2RAD
 
@@ -210,7 +206,6 @@ def rad_to_deg(rad: float) -> float:
 
 
 # ---- Toric / meridional helpers (simple forms) --------------------------------
-
 
 def sag_sphere_meridional(
     Rx_mm: float, Ry_mm: float, y_mm: float, theta_rad: float
@@ -228,18 +223,110 @@ def sag_sphere_meridional(
     Rtheta = 1.0 / denom
     return sag_sphere(Rtheta, y_mm)
 
+# === Tangent and Slope Calculations ===
+def slope_and_angle_of_line_tangent_to_curve(x_val, R_val, K_val):
+    """
+    Calculate the slope and angle of the line tangent to a conic curve
+    at a point defined by x_val.
 
-# ---- (Optional) Legacy compatibility shim -------------------------------------
-# If legacy `geometryfunctions02.py` had names like: Sag(), ConicSag(), Curv(), etc.,
-# you can add aliases here to avoid breaking existing call sites while you migrate.
-#
-# Example (uncomment/edit as needed):
-#
-# Sag = sag_sphere
-# ConicSag = sag_conic
-# Curv = curvature_from_radius
-# RadiusFromCurv = radius_from_curvature
-# PowerFromRadius = lambda n, R: radius_to_surface_power(1.0, n, R)  # air->lens
-# RadiusFromPower = lambda n, F: surface_power_to_radius(1.0, n, F)
-#
-# Keep these temporarily and remove once codebase is fully updated.
+    The conic is defined as:
+        y = x^2 / (R + sqrt(R^2 - (K + 1) * x^2))
+
+    Args:
+        x_val (float): The x-coordinate of the point of tangency.
+        R_val (float): The radius of curvature at the apex (R0).
+        K_val (float): The conic constant.
+
+    Returns:
+        tuple:
+            slope_of_line (sympy.Float): Slope (dy/dx) at x_val.
+            angle_radians (sympy.Float): Tangent line angle in radians.
+            angle_degrees (sympy.Float): Tangent line angle in degrees.
+    """
+    # Define symbols
+    x, R, K = sp.symbols("x R K")
+
+    # Define the equation
+    y = x**2 / (R + sp.sqrt(R**2 - (K + 1) * x**2))
+
+    # First derivative with respect to x
+    y_prime = sp.diff(y, x)
+
+    # Slope of a tangent line at point x_val
+    slope_of_line = y_prime.subs({x: x_val, R: R_val, K: K_val})
+
+    # Calculate the angle of the tangent line
+    angle_radians = sp.atan(slope_of_line)
+    angle_degrees = sp.deg(angle_radians)
+
+    return slope_of_line, angle_radians, angle_degrees
+
+# === Y-intercept for a line ===
+def y_intercept(x_val, y_val, m_val):
+    # (x_val, y_val): point on the line
+    # m_val: slope
+    return y_val - m_val * x_val
+
+# === Find the intersections of a line with a conic ===
+def conic_line_intersections(m, b, R0, K, d, tol=1e-10):
+    """
+    Solve intersections between
+        y = x^2 / (R0 + sqrt(R0^2 - (K+1) x^2)) + d
+    and
+        y = m x + b
+    Returns a sorted list of (x, y).
+    """
+    a = K + 1.0
+    c = b - d
+
+    # Quadratic coefficients: A x^2 + B x + C = 0
+    A = a * m * m + 1.0
+    B = 2.0 * m * (a * c - R0)
+    C = a * c * c - 2.0 * R0 * c
+
+    xs = []
+
+    # Solve quadratic robustly
+    disc = B*B - 4*A*C
+    if disc > -tol:
+        disc = max(disc, 0.0)
+        sqrt_disc = math.sqrt(disc)
+        x1 = (-B - sqrt_disc) / (2*A)
+        x2 = (-B + sqrt_disc) / (2*A)
+        xs.extend([x1, x2])
+
+    # Special-case x=0 root is valid only if b == d (within tol)
+    if abs(b - d) <= tol:
+        xs.append(0.0)
+
+    # Domain filter and de-duplicate
+    x_max = R0 / math.sqrt(a)
+    uniq = []
+    for x in xs:
+        # Deduplicate near-equals
+        if any(abs(x - u) <= 1e-9 for u in uniq):
+            continue
+        # Domain: sqrt argument must be >= 0
+        if abs(x) - x_max > 1e-12:
+            continue
+        uniq.append(x)
+
+    # Verify against the original (unsquared) equation to discard artifacts
+    pts = []
+    for x in uniq:
+        sqrt_arg = R0*R0 - a * x*x
+        if sqrt_arg < -1e-12:
+            continue
+        sqrt_term = math.sqrt(max(sqrt_arg, 0.0))
+        y_conic = (x*x) / (R0 + sqrt_term) + d
+        y_line = m*x + b
+        if abs(y_conic - y_line) <= 1e-7:
+            pts.append((x, y_conic))
+
+    # Sort by x
+    pts.sort(key=lambda p: p[0])
+    return pts
+
+# === Distance between two points ===
+def distance_between_points(p1, p2):
+    return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)

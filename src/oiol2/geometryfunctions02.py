@@ -255,9 +255,10 @@ def y_intercept(x_val, y_val, m_val):
     return y_val - m_val * x_val
 
 
-# Calculate the slope and angle of a line tangent to a conic curve at a given point.
 def slope_and_angle_of_line_tangent_to_curve(x_val, R_val, K_val):
-
+    # Calculate the slope and angle of a line tangent to a conic
+    # curve at a given point.
+    
     # Define symbols
     x, R, K = sp.symbols("x R K")
 
