@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import math
 import sympy as sp
+from typing import List, Tuple
 
 # ---- Constants ----------------------------------------------------------------
 
@@ -267,6 +268,11 @@ def y_intercept(x_val, y_val, m_val):
     # m_val: slope
     return y_val - m_val * x_val
 
+# === Convert the angle of a line ===
+def slope_from_angle(theta_degrees):
+    theta_radians = math.radians(theta_degrees)
+    return math.tan(theta_radians)
+
 # === Find the intersections of a line with a conic ===
 def conic_line_intersections(m, b, R0, K, d, tol=1e-10):
     """
@@ -330,3 +336,147 @@ def conic_line_intersections(m, b, R0, K, d, tol=1e-10):
 # === Distance between two points ===
 def distance_between_points(p1, p2):
     return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
+
+# === Sigmoid curve between two points - Cubic Hermite  ===
+Point = Tuple[float, float]  # (x, z)
+def sigmoid_segment_with_end_slopes(
+    p_start: Point,
+    p_end: Point,
+    m_slope_start: float,
+    m_slope_end: float,
+    n: int = 200,
+) -> List[Point]:
+    """
+    Construct a single-inflection (sigmoid-like) 2D curve between two points with specified end slopes.
+
+    The curve is a cubic Hermite segment built in a chord-aligned local coordinate system (LCS),
+    then rotated/translated back to the global coordinate system (GCS).
+
+    Coordinate conventions
+    ----------------------
+    * Points are (x, z).
+    * "Slope" is dz/dx in the current frame.
+
+    Inputs
+    ------
+    p_start : (x, z)
+        Starting point of the segment in GCS.
+    p_end   : (x, z)
+        Ending point of the segment in GCS.
+    m_slope_start : float
+        Desired slope (dz/dx) at p_start, specified in GCS.
+        Use math.inf / -math.inf for a vertical tangent.
+    m_slope_end   : float
+        Desired slope (dz/dx) at p_end, specified in GCS.
+        Use math.inf / -math.inf for a vertical tangent.
+    n : int, default 200
+        Number of sample points along the curve (inclusive of both endpoints).
+
+    Returns
+    -------
+    List[Point]
+        A list of (x, z) points in GCS sampling the cubic Hermite segment from p_start to p_end.
+
+    Method (high level)
+    -------------------
+    1) Build an LCS whose +x axis lies along the chord from p_start to p_end:
+       P0_L = (0, 0), P1_L = (L, 0), where L = |p_end - p_start|.
+    2) Convert the requested GCS end slopes to LCS slopes (angle subtraction).
+    3) Use a cubic Hermite y(x) in LCS with y(0)=y(L)=0 and dy/dx at each end set to the LCS slopes.
+       With s = x/L ∈ [0,1], y(s) = L * [(s^3 - 2s^2 + s)*m0' + (s^3 - s^2)*m1'].
+       This cubic generally has exactly one inflection → a smooth "S" between the endpoints.
+    4) Map all (x, y) in LCS back to GCS via rotation + translation.
+
+    Notes
+    -----
+    * This construction is robust for vertical chords and/or vertical end slopes because slope
+      rotation is performed via angles (atan/tan) in the LCS.
+    * Endpoints are explicitly snapped to (p_start, p_end) after evaluation to eliminate any
+      accumulated round-off at the boundaries.
+    * If p_start == p_end, the function returns n copies of p_start.
+
+    """
+    x0, z0 = p_start
+    x1, z1 = p_end
+
+    dx, dz = x1 - x0, z1 - z0
+    L = math.hypot(dx, dz)
+    if L == 0.0:
+        return [p_start] * max(1, n)
+
+    # Chord angle: rotate GCS by -theta to make the chord horizontal in LCS
+    theta = math.atan2(dz, dx)
+
+    # --- Helper: rotate a GCS slope into LCS by subtracting the chord angle ---
+    def slope_to_local(m: float, ang: float) -> float:
+        """
+        Map a GCS slope m to an LCS slope m' by subtracting 'ang' from the slope angle.
+        Handles vertical slopes robustly via angle arithmetic.
+        """
+        # Convert slope to angle
+        if math.isinf(m):
+            phi = math.pi / 2 if m > 0 else -math.pi / 2
+        else:
+            phi = math.atan(m)
+        # Rotate into local frame
+        phi_l = phi - ang
+        # If exactly vertical in LCS, keep it vertical
+        # (guard tiny round-off near ±pi/2)
+        eps = 1e-15
+        if abs(abs(phi_l) - math.pi / 2) < eps:
+            return math.copysign(math.inf, phi_l)
+        return math.tan(phi_l)
+
+    m0_l = slope_to_local(m_slope_start, theta)  # slope at s=0 in LCS
+    m1_l = slope_to_local(m_slope_end,   theta)  # slope at s=1 in LCS
+
+    # --- Build cubic Hermite in LCS: x ∈ [0, L], y(x) matches end slopes ---
+    pts_lcs: List[Point] = []
+    for i in range(n):
+        x = L * i / (n - 1)         # along the chord
+        s = x / L                   # normalized parameter in [0, 1]
+        # With y0 = y1 = 0, the Hermite reduces to derivative terms only:
+        # y(s) = L * [(s^3 - 2s^2 + s) * m0_l + (s^3 - s^2) * m1_l]
+        s2 = s * s
+        s3 = s2 * s
+        y = L * ((s3 - 2*s2 + s) * m0_l + (s3 - s2) * m1_l)
+        pts_lcs.append((x, y))
+
+    # --- Map LCS → GCS by rotating + translating back by +theta about p_start ---
+    c, s = math.cos(theta), math.sin(theta)
+    pts_gcs: List[Point] = []
+    for x, y in pts_lcs:
+        X =  c * x - s * y + x0
+        Z =  s * x + c * y + z0
+        pts_gcs.append((X, Z))
+
+    # Snap endpoints exactly to the requested endpoints (eliminate boundary round-off)
+    pts_gcs[0]  = p_start
+    pts_gcs[-1] = p_end
+
+    return pts_gcs
+
+def point_along_line(slope, y_intercept, distance, x_direction, x_start):
+    """
+    Computes the x, y values for a point along a line given the slope, y-intercept,
+    distance, x direction to move, and starting x value.
+
+    Args:
+        slope (float): Slope of the line.
+        y_intercept (float): Y-intercept of the line.
+        distance (float): Distance to move along the line.
+        x_direction (int): Direction to move (1 for positive x, -1 for negative x).
+        x_start (float): Starting x value on the line.
+
+    Returns:
+        float: The x value of the point after moving the specified distance.
+        float: The y value of the point after moving the specified distance.
+    """
+    # Calculate the change in x based on the distance and direction
+    delta_x = distance / math.sqrt(1 + slope**2) * x_direction
+
+    # Calculate the new x and y values
+    x_new = x_start + delta_x
+    y_new = slope * x_new + y_intercept
+
+    return (x_new, y_new)

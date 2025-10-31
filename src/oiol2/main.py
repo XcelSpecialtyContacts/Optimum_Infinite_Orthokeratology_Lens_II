@@ -14,9 +14,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Optional
-
-import numpy as np
-import re
+#import re
 
 try:
     import tomllib  # Python 3.11+
@@ -25,12 +23,26 @@ except ModuleNotFoundError:  # pragma: no cover
 
 # Load modules specific to this project
 from oiol2.vis.plotting import plot_meridional_curves, Curve
-from oiol2.geometry.meridional import generate_optic_zone_meridional
-from oiol2.geometry_core import slope_and_angle_of_line_tangent_to_curve
-from oiol2.geometry_core import y_intercept
-from oiol2.geometry_core import front_curve_radius_from_vertex_power
-from oiol2.geometry_core import conic_line_intersections
-from oiol2.geometry_core import distance_between_points
+from oiol2.geometry.meridional import (
+    generate_optic_zone_meridional,
+    generate_front_optic_zone_meridional,
+    find_ct_fcr_jt_to_meet_jt_min, 
+    _to_float,
+    edge_normal_line_at_back_surface,
+    generate_line_path,
+    tangent_circle_below_with_points,
+    generate_upper_semi_circle_path,
+    calc_bs_edge_data
+)
+from oiol2.geometry_core import (
+    conic_line_intersections,
+    distance_between_points,
+    slope_from_angle,
+    y_intercept,
+    slope_and_angle_of_line_tangent_to_curve,
+    sigmoid_segment_with_end_slopes,
+    point_along_line
+)
 
 # -----------------------
 # Data models (typed)
@@ -83,7 +95,7 @@ class LensDesign:
 # Helpers
 # -----------------------
 
-_number_re = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)")
+#_number_re = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)")
 
 def repo_root_from_this_file() -> Path:
     """
@@ -221,24 +233,24 @@ def validate_and_build(cfg: dict[str, Any]) -> AppConfig:
         ),
     )
 
-def _to_float(v) -> float:
-    """
-    Coerce Lab File values to float.
-    Accepts:
-      - float/int
-      - strings like '8.70', '+0.75', '  10.5 mm', etc.
-      - dicts like {'value': '8.70'} or {'value': 8.70}
-    Raises ValueError if no numeric content is found.
-    """
-    if isinstance(v, (int, float)):
-        return float(v)
-    if isinstance(v, dict) and "value" in v:
-        return _to_float(v["value"])
-    s = str(v).strip()
-    m = _number_re.search(s)
-    if not m:
-        raise ValueError(f"Cannot parse numeric value from: {v!r}")
-    return float(m.group(0))
+# def _to_float(v) -> float:
+#     """
+#     Coerce Lab File values to float.
+#     Accepts:
+#       - float/int
+#       - strings like '8.70', '+0.75', '  10.5 mm', etc.
+#       - dicts like {'value': '8.70'} or {'value': 8.70}
+#     Raises ValueError if no numeric content is found.
+#     """
+#     if isinstance(v, (int, float)):
+#         return float(v)
+#     if isinstance(v, dict) and "value" in v:
+#         return _to_float(v["value"])
+#     s = str(v).strip()
+#     m = _number_re.search(s)
+#     if not m:
+#         raise ValueError(f"Cannot parse numeric value from: {v!r}")
+#     return float(m.group(0))
 
 def _coerce_float(name: str, v: Any) -> float:
     try:
@@ -482,72 +494,249 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info("\n%s", summarize_lab_result(lab_data))
 
-    optic_zone_points = generate_optic_zone_meridional(lab_data)
+    ########################
+    # Calculate the Base Curve optic zone radius bcoz_points
+    bcoz_points = generate_optic_zone_meridional(lab_data)
+    ########################
 
     ########################
-    # Sandbox for developing code
-    # Development: Optic zone bounday junction thickness
+    # Calculate the Front Curve optic zone radius, Center Thickness, and
+    # Junction Thickness at the edge of optic zone
+    R0_back   = _to_float(lab_data["BC"]) # BC optic zone radius
+    K_back    = 0.0  # conic constant for back optic zone: sphere in this design
+    x_edge    = _to_float(lab_data["BCOZDia"]) / 2.0 # half cord distance for optic zone
+    power_D   = _to_float(lab_data["Power"]) # Sphere power for the lens
+    index_ri  = _to_float(lab_data["RI"]) # Refractive Index of the material
+    vertex_mm = _to_float(lab_data["Vertex"]) # How is lens power to be calculated (back vertex, or front vertex)
+    ct_init   = _to_float(lab_data["CT"]) # This is intially the center thickness that was originally specified
 
-    # Parameters for calculating the normal line at the edge of the treatment/optic zone
-    R0 = _to_float(lab_data["BC"])
-    K = 0 # treatment/optic zone is always a sphere for this design so K will be 0
-    x_start = 0.0 # center of the treatment/optic zone
-    x_end = _to_float(lab_data["BCOZDia"]) / 2 # the edge of the treatment/optic zone
+    jt_min_mm = lens_design.params["center_zone.junction_thickness"].min
+    ct_min_mm = lens_design.params["center_zone.thickness"].min
+    ct_max_mm = lens_design.params["center_zone.thickness"].max
 
-    # Create x values
-    x = np.linspace(x_start, x_end, 500)
+    # --- Validate initial center thickness ---
+    if ct_init < ct_min_mm:
+        logger.warning(
+            "CT below minimum: %.3f mm < %.3f mm (adjusted to min limit).",
+            ct_init, ct_min_mm
+        )
+        ct_init = ct_min_mm
+    elif ct_init > ct_max_mm:
+        logger.warning(
+            "CT above maximum: %.3f mm > %.3f mm (adjusted to max limit).",
+            ct_init, ct_max_mm
+        )
+        ct_init = ct_max_mm
+    else:
+        logger.debug(
+            "CT within limits: %.3f mm (range %.3f–%.3f mm).",
+            ct_init, ct_min_mm, ct_max_mm
+        )
 
-    # Compute y values, ensuring the sqrt argument stays valid
-    sqrt_term = R0**2 - x**2 * (K + 1)
-    valid_mask = sqrt_term >= 0
-    x_valid = x[valid_mask]
-    y_valid = x_valid**2 / (R0 + np.sqrt(sqrt_term[valid_mask]))
+    result = find_ct_fcr_jt_to_meet_jt_min(
+        power_D=power_D,
+        R0_back=R0_back,
+        K_back=K_back,
+        index_ri=index_ri,
+        ct_init_mm=ct_init,
+        vertex_mm=vertex_mm,
+        x_edge=x_edge,
+        jt_min_mm=jt_min_mm,
+        ct_min_mm=ct_min_mm,
+        ct_max_mm=ct_max_mm,
+        step_mm=0.001,
+        max_iter=5000,
+    )
 
-    # === Compute and tangent line at x_end ===
-    m_tangent_end, _, _ = slope_and_angle_of_line_tangent_to_curve(x_end, R0, K)
+    logger.info(
+        "JT solve: converged=%s, iters=%d, CT=%.3f mm, FCR=%.3f mm, JT=%.3f mm%s",
+        result.converged, result.iterations, result.ct, result.fcr, result.jt1,
+        f" | note: {result.note}" if result.note else "",
+    )
 
-    # Calculate the y-value at x_end on the conic
-    y_end = x_end**2 / (R0 + np.sqrt(R0**2 - x_end**2 * (K + 1)))
+    CT  = result.ct
+    FCR = result.fcr
+    JT1 = result.jt1
+    ########################
 
-    # Compute slope of line norml to tangent line
-    m_normal_end = -1/m_tangent_end
+    ########################
+    # Calculate front surface optic zone points
+    bcoz_p_apex = (0, 0)
+    bc_e_x, bc_e_y, jt1_m, jt1_b = edge_normal_line_at_back_surface(x_edge, R0_back, K_back) # computes the point at the end of the BC optic zone and the line normal the surface at that point
+    bcoz_p_end = (bc_e_x, bc_e_y)
+    fcoz_p_apex = (0, -CT)
+    pts = conic_line_intersections(jt1_m, jt1_b, FCR, 0.0, -CT)
+    fcoz_p_end = min(pts, key=lambda q: distance_between_points(bcoz_p_end, q))
+    fcoz_points = generate_front_optic_zone_meridional(0.0, fcoz_p_end[0], CT, FCR)
+    ########################
 
-    # Calculate the y-intercept (b_normal_end)
-    b_normal_end = y_intercept(x_end, y_end, m_normal_end)
+    ########################
+    # Calculate JT1 points
+    jt1_points = generate_line_path(bcoz_p_end[0], fcoz_p_end[0], jt1_m, jt1_b)
+    ########################
 
-    # Establish the initial center thickness value
-    ct_init = _to_float(lab_data["CT"])
+    ########################
+    # Calculate Base Surface Flat Axis Landing Zone path
+    bslz_flat_p_start = (bcoz_p_end[0] + lens_design.params["return_zone.width"].default, bcoz_p_end[1] + _to_float(lab_data["RZDFlat"]))
+    bslz_flat_m = slope_from_angle(_to_float(lab_data["LZAFlat"]))
+    bslz_flat_b = y_intercept(bslz_flat_p_start[0], bslz_flat_p_start[1], bslz_flat_m)
+    bslz_flat_ext_p_end = (_to_float(lab_data["Dia"]) / 2, bslz_flat_m * _to_float(lab_data["Dia"]) / 2 + bslz_flat_b)
+    bslz_flat_ext_points = generate_line_path(bslz_flat_p_start[0], bslz_flat_ext_p_end[0], bslz_flat_m, bslz_flat_b)
+    ########################
 
-    # A
-    # Calculate the initial radius for the front surface for the optic/treatment zone
-    FCR_init = front_curve_radius_from_vertex_power(_to_float(lab_data["Power"]), _to_float(lab_data["BC"]), _to_float(lab_data["RI"]), ct_init, _to_float(lab_data["Vertex"]))
-
-    # B
-    # Calculate the junction thickness at the edge of the treatment/optic zone
-    p1 = (x_end, y_end)
-    intersection_points = conic_line_intersections(m_normal_end, b_normal_end, FCR_init, 0, _to_float(lab_data["CT"]))
-    p2 = intersection_points[0]
-    jt_int = distance_between_points(p1, p2)
-
-    print(f"Calculated JT is {jt_int} with a CT of {_to_float(lab_data['CT'])}.")
-    print(f"The minimum JT is {lens_design.params['center_zone.junction_thickness'].min}.")
-
-    # C
-    # If jt_int < lens_design.params['center_zone.junction_thickness'].min then
-    #   ct_init = ct_init + 0.001
-    #   Go back to A and re-compute FCR_init, and jt_int.
-    # Else
-    #   FCR = FCR_init
-    #   CT = ct_init
-    #   JT1 = jt_init
-
+    ########################
+    # Calculate Base Surface Steep Axis Landing Zone path
+    bslz_steep_p_start = (bcoz_p_end[0] + lens_design.params["return_zone.width"].default, bcoz_p_end[1] + _to_float(lab_data["RZDSteep"]))
+    bslz_steep_m = slope_from_angle(_to_float(lab_data["LZASteep"]))
+    bslz_steep_b = y_intercept(bslz_steep_p_start[0], bslz_steep_p_start[1], bslz_steep_m)
+    bslz_steep_ext_p_end = (_to_float(lab_data["Dia"]) / 2, bslz_steep_m * _to_float(lab_data["Dia"]) / 2 + bslz_steep_b)
+    bslz_steep_ext_points = generate_line_path(bslz_steep_p_start[0], bslz_steep_ext_p_end[0], bslz_steep_m, bslz_steep_b)
     ########################
     
     ########################
+    # Calculate Base Surface Flat Axis Return Zone
+    bsrz_flat_p_start = bcoz_p_end
+    bsrz_flat_p_end = bslz_flat_p_start
+    bsrz_flat_m_start, _, _ = slope_and_angle_of_line_tangent_to_curve(_to_float(lab_data["BCOZDia"]) / 2.0, _to_float(lab_data["BC"]), 0.0)
+    bsrz_flat_m_end = bslz_flat_m
+    bsrz_flat_points = sigmoid_segment_with_end_slopes(bsrz_flat_p_start, bsrz_flat_p_end, bsrz_flat_m_start, bsrz_flat_m_end)
+    ########################
+
+    ########################
+    # Calculate Base Surface Steep Axis Return Zone
+    bsrz_steep_p_start = bcoz_p_end
+    bsrz_steep_p_end = bslz_steep_p_start
+    bsrz_steep_m_start, _, _ = slope_and_angle_of_line_tangent_to_curve(_to_float(lab_data["BCOZDia"]) / 2.0, _to_float(lab_data["BC"]), 0.0)
+    bsrz_steep_m_end = bslz_steep_m
+    bsrz_steep_points = sigmoid_segment_with_end_slopes(bsrz_steep_p_start, bsrz_steep_p_end, bsrz_steep_m_start, bsrz_steep_m_end)
+    ########################
+
+    ########################
+    # Calculate the base surface Peripheral Edge Curve for the flat axis.
+    bsez_flat_ext_p_start = (
+        _to_float(lab_data["Dia"]) / 2 - lens_design.params["peripheral_edge_curve.width"].default,
+        bslz_flat_m * (_to_float(lab_data["Dia"]) / 2 - lens_design.params["peripheral_edge_curve.width"].default) + bslz_flat_b
+    )
+    bsez_flat_ext_p_end = (
+        bslz_flat_ext_p_end[0],
+        bsez_flat_ext_p_start[1] + _to_float(lab_data["PECDFlat"])
+    )
+    bsez_flat_m = _to_float(lab_data["PECDFlat"]) / lens_design.params["peripheral_edge_curve.width"].default
+    bsez_flat_b = bsez_flat_ext_p_end[1] - bsez_flat_m * bsez_flat_ext_p_end[0]
+    bsez_flat_ext_points = generate_line_path(bsez_flat_ext_p_start[0], bsez_flat_ext_p_end[0], bsez_flat_m, bsez_flat_b)
+    ########################
+
+    ########################
+    # Calculate the base surface Peripheral Edge Curve for the steep axis.
+    bsez_steep_ext_p_start = (
+        _to_float(lab_data["Dia"]) / 2 - lens_design.params["peripheral_edge_curve.width"].default,
+        bslz_steep_m * (_to_float(lab_data["Dia"]) / 2 - lens_design.params["peripheral_edge_curve.width"].default) + bslz_steep_b
+    )
+    bsez_steep_ext_p_end = (
+        bslz_steep_ext_p_end[0],
+        bsez_steep_ext_p_start[1] + _to_float(lab_data["PECDSteep"])
+    )
+    bsez_steep_m = _to_float(lab_data["PECDSteep"]) / lens_design.params["peripheral_edge_curve.width"].default
+    bsez_steep_b = bsez_steep_ext_p_end[1] - bsez_steep_m * bsez_steep_ext_p_end[0]
+    bsez_steep_ext_points = generate_line_path(bsez_steep_ext_p_start[0], bsez_steep_ext_p_end[0], bsez_steep_m, bsez_steep_b)
+    ########################
+
+    ########################
+    # On the base surface calculate the blend zone between landing zone and the edge zone for the flat axis.
+    bs_lz_to_ez_blend_flat_ctr_p, bs_lz_to_ez_blend_flat_tangent_p_1, bs_lz_to_ez_blend_flat_tangent_p_2 = tangent_circle_below_with_points(
+        bslz_flat_m,
+        bslz_flat_b,
+        bsez_flat_m,
+        bsez_flat_b,
+        lens_design.params["blend_curve_landing_edge.radius"].default
+    )
+    bs_lz_to_ez_blend_flat_points = generate_upper_semi_circle_path(
+        lens_design.params["blend_curve_landing_edge.radius"].default,
+        bs_lz_to_ez_blend_flat_ctr_p,
+        bs_lz_to_ez_blend_flat_tangent_p_1[0],
+        bs_lz_to_ez_blend_flat_tangent_p_2[0],
+        201
+    )
+    ########################
+
+    ########################
+    # On the base surface calculate the blend zone between landing zone and the edge zone for the steep axis.
+    bs_lz_to_ez_blend_steep_ctr_p, bs_lz_to_ez_blend_steep_tangent_p_1, bs_lz_to_ez_blend_steep_tangent_p_2 = tangent_circle_below_with_points(
+        bslz_steep_m,
+        bslz_steep_b,
+        bsez_steep_m,
+        bsez_steep_b,
+        lens_design.params["blend_curve_landing_edge.radius"].default
+    )
+    bs_lz_to_ez_blend_steep_points = generate_upper_semi_circle_path(
+        lens_design.params["blend_curve_landing_edge.radius"].default,
+        bs_lz_to_ez_blend_steep_ctr_p,
+        bs_lz_to_ez_blend_steep_tangent_p_1[0],
+        bs_lz_to_ez_blend_steep_tangent_p_2[0],
+        201
+    )
+    ########################
+
+    ########################
+    # On the base surface calculate the edge radius path for the flat axis.
+    bs_edge_radius_flat_center_p, bs_edge_radius_flat_tangent_el_p, bs_edge_radius_flat_tangent_vert_p = calc_bs_edge_data(
+        _to_float(lab_data["Dia"]) / 2,
+        bsez_flat_m,
+        bsez_flat_b,
+        _to_float(lab_data["ET"]) / 2
+    )
+    bs_edge_radius_flat_points = generate_upper_semi_circle_path(
+        _to_float(lab_data["ET"]) / 2,
+        bs_edge_radius_flat_center_p,
+        bs_edge_radius_flat_tangent_el_p[0],
+        bs_edge_radius_flat_tangent_vert_p[0],
+        201
+    )
+    ########################
+
+    ########################
+    # On the base surface calculate the edge radius path for the steep axis. bs_edge_radius_steep_points
+    bs_edge_radius_steep_center_p, bs_edge_radius_steep_tangent_el_p, bs_edge_radius_steep_tangent_vert_p = calc_bs_edge_data(
+        _to_float(lab_data["Dia"]) / 2,
+        bsez_steep_m,
+        bsez_steep_b,
+        _to_float(lab_data["ET"]) / 2
+    )
+    bs_edge_radius_steep_points = generate_upper_semi_circle_path(
+        _to_float(lab_data["ET"]) / 2,
+        bs_edge_radius_steep_center_p,
+        bs_edge_radius_steep_tangent_el_p[0],
+        bs_edge_radius_steep_tangent_vert_p[0],
+        201
+    )
+    ########################
+
+    ########################
+    # Compute Junction Thickness at Landing Zone and Edge Zone for the flat axis
+    JT2 = _to_float(lab_data["ET"]) + 0.03
+    jt2_flat_m = -1 / bslz_flat_m
+    jt2_flat_b = bsez_flat_ext_p_start[1] - jt2_flat_m * bsez_flat_ext_p_start[0]
+    jt2_flat_p_end = point_along_line(jt2_flat_m, jt2_flat_b, JT2, 1, bsez_flat_ext_p_start[0])
+    jt2_flat_points = generate_line_path(bsez_flat_ext_p_start[0], jt2_flat_p_end[0], jt2_flat_m, jt2_flat_b)
+    print(f"JT2 Flat start: {bsez_flat_ext_p_start}")
+    print(f"JT2 Flat end: {jt2_flat_p_end}")
+    ########################
+
+    ########################
     # Plot the curves
     plot_meridional_curves(
-        [Curve(label="Base Surface Optic Zone", points=optic_zone_points)],
-        title="Optic/Treatment Zone (Base Surface)",
+        [
+            Curve(label="Base Surface Optic Zone", points=bcoz_points),
+            Curve(label="Front Surface Optic Zone", points=fcoz_points),
+            Curve(points=jt1_points),
+            Curve(points=bsrz_flat_points),
+            Curve(points=bslz_flat_ext_points),
+            Curve(points=bsez_flat_ext_points),
+            Curve(points=bs_lz_to_ez_blend_flat_points),
+            Curve(points=bs_edge_radius_flat_points),
+            Curve(label="JT2 Flat", points=jt2_flat_points)
+        ],
+        title="Optimum Infinite Orthokeratology Lens II",
         xlim=(0, 8)
     )
     ########################

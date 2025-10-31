@@ -18,9 +18,9 @@ A11 SO Num                         12680282
 166 xcel.return_zone.depth.steep   0.525
 167 xcel.landing_zone.angle.flat   33
 168 xcel.landing_zone.angle.steep  33
-169 per_edge_curve.depth.flat      0.07
-170 per_edge_curve.depth.steep     0.07
-171 xcel.edge.thickness            0.11
+169 per_edge_curve.depth.flat      0.19
+170 per_edge_curve.depth.steep     0.19
+171 xcel.edge.thickness            0.12
 172 xcel.power.vertex              +0.75
 173 ALM.material.code              438
 174 material.refractive.index      1.438

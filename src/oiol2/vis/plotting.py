@@ -14,7 +14,7 @@ class Curve:
       - x, z as 1D sequences of equal length
       - or points as an (N,2) array (columns: x, z)
     """
-    label: str
+    label: Optional[str] = None
     x: Optional[ArrayLike] = None
     z: Optional[ArrayLike] = None
     points: Optional[np.ndarray] = None
@@ -38,7 +38,7 @@ class Curve:
 
 
 def plot_meridional_curves(
-    curves: Iterable[Curve],
+    curves: Iterable,
     *,
     title: str = "Meridional Curves",
     xlabel: str = "X (mm)",
@@ -55,7 +55,7 @@ def plot_meridional_curves(
     Plot one or more meridional (x, z) curves using matplotlib.
 
     Args:
-        curves: iterable of Curve specs
+        curves: iterable of Curve-like objects that implement get_xz().
         title, xlabel, zlabel: labels and title
         equal_aspect: if True, enforce 1:1 aspect ratio
         grid: show grid
@@ -68,14 +68,16 @@ def plot_meridional_curves(
 
     for c in curves:
         x, z = c.get_xz()
-        plt.plot(
-            x,
-            z,
-            linestyle=c.linestyle,
-            linewidth=c.linewidth,
-            label=c.label,
-            color=c.color,
-        )
+        label = getattr(c, "label", None)
+        linestyle = getattr(c, "linestyle", "-")
+        linewidth = getattr(c, "linewidth", 1.0)
+        color = getattr(c, "color", None)
+
+        # Only include label if it's non-empty
+        if label:
+            plt.plot(x, z, linestyle=linestyle, linewidth=linewidth, label=label, color=color)
+        else:
+            plt.plot(x, z, linestyle=linestyle, linewidth=linewidth, color=color)
 
     plt.xlabel(xlabel)
     plt.ylabel(zlabel)
@@ -88,7 +90,11 @@ def plot_meridional_curves(
         plt.xlim(*xlim)
     if zlim is not None:
         plt.ylim(*zlim)
-    plt.legend()
+
+    # Only show legend if at least one labeled curve exists
+    handles, labels = plt.gca().get_legend_handles_labels()
+    if any(labels):
+        plt.legend()
 
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches="tight")
