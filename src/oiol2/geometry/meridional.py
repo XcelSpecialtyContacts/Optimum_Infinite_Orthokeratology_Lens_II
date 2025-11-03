@@ -2,7 +2,7 @@
 from __future__ import annotations
 import re
 import math
-from math import hypot
+from math import hypot, sqrt, isclose, inf
 import numpy as np
 from dataclasses import dataclass
 from typing import Optional, Tuple
@@ -433,3 +433,124 @@ def generate_upper_semi_circle_path(
     y_vals = k + np.sqrt(np.maximum(0.0, r**2 - (x_vals - h)**2))
 
     return list(zip(x_vals.tolist(), y_vals.tolist()))
+
+def generate_lower_semi_circle_path(
+    r: float,
+    center_point: Tuple[float, float],
+    x_start: float,
+    x_end: float,
+    number_of_points: int
+) -> List[Tuple[float, float]]:
+    """
+    Generate (x, y) points along the **upper** semicircle between x_start and x_end.
+
+    Args:
+        r (float): Radius of the circle.
+        center_point (tuple): (h, k) coordinates of the circle center.
+        x_start (float): Starting x position along the circle.
+        x_end (float): Ending x position along the circle.
+        number_of_points (int): Number of points to generate.
+
+    Returns:
+        list[tuple[float, float]]: List of (x, y) coordinates along the upper semicircle.
+    """
+    if number_of_points < 2:
+        raise ValueError("number_of_points must be at least 2")
+    if abs(x_start - center_point[0]) > r or abs(x_end - center_point[0]) > r:
+        raise ValueError("x_start and x_end must be within the circle bounds (center_x ± r)")
+
+    h, k = center_point
+
+    # Linearly spaced x values between x_start and x_end
+    x_vals = np.linspace(x_start, x_end, number_of_points)
+
+    # Equation of circle: (x - h)^2 + (y - k)^2 = r^2
+    # Upper semicircle => y = k + sqrt(r^2 - (x - h)^2)
+    y_vals = k - np.sqrt(np.maximum(0.0, r**2 - (x_vals - h)**2))
+
+    return list(zip(x_vals.tolist(), y_vals.tolist()))
+
+def tangent_line_from_external_point(center, r, point, prefer="smallest"):
+    """
+    Compute the line(s) through an external point that are tangent to a circle.
+
+    Args:
+        center: (h, k) center of the circle
+        r:      circle radius (>0)
+        point:  (xi, yi) external point (must be strictly outside the circle)
+        prefer: "smallest" (default), "largest", or "both"
+                - "smallest": return the tangent with the numerically smallest slope
+                - "largest" : return the tangent with the numerically largest slope
+                - "both"    : return both tangents as [(m1, b1, (tx1, ty1)), (m2, b2, (tx2, ty2))]
+
+    Returns:
+        If prefer != "both":
+            (m, b, (tx, ty))
+            - m: slope (float) or None if vertical
+            - b: y-intercept (float) or None if vertical (line is x = constant)
+            - (tx, ty): tangent point on the circle
+        If prefer == "both":
+            list of two tuples as above (order not guaranteed)
+
+    Notes:
+        - If the chosen tangent is vertical, returns m=None, b=None (line is x=xi).
+        - For selection by "smallest"/"largest", vertical slopes are treated as +inf.
+    """
+    (h, k) = center
+    (xi, yi) = point
+
+    # Vector from center to external point
+    ux = xi - h
+    uy = yi - k
+    d2 = ux*ux + uy*uy
+    if d2 <= r*r:
+        raise ValueError("Point is on or inside the circle; real tangents do not exist.")
+
+    d = sqrt(d2)
+
+    # Build the two tangent points using an orthogonal decomposition:
+    # T = C + a * u  ±  b * R90(u), where
+    #   u = P - C, R90(u) = (-uy, ux),
+    #   a = r^2 / d^2,  b = r*sqrt(d^2 - r^2) / d^2
+    a = (r*r) / d2
+    b = (r * sqrt(d2 - r*r)) / d2
+
+    # R90(u)
+    r90x, r90y = -uy, ux
+
+    # Two candidate tangent points on the circle
+    t1x = h + a*ux + b*r90x
+    t1y = k + a*uy + b*r90y
+    t2x = h + a*ux - b*r90x
+    t2y = k + a*uy - b*r90y
+
+    # For each tangent point, compute slope/intercept of line through P and T
+    def line_from_points(px, py, qx, qy, eps=1e-14):
+        dx = qx - px
+        dy = qy - py
+        if isclose(dx, 0.0, abs_tol=eps):
+            # vertical line: x = const
+            return None, None  # m, b undefined; caller can infer x = px
+        m = dy / dx
+        b = py - m*px
+        return m, b
+
+    cand = []
+    for (tx, ty) in [(t1x, t1y), (t2x, t2y)]:
+        m, b_int = line_from_points(xi, yi, tx, ty)
+        # For ordering, treat vertical as +inf slope
+        order_key = abs(m) if m is not None else inf
+        cand.append((order_key, m, b_int, (tx, ty)))
+
+    if prefer == "both":
+        # Return both tangents (drop the ordering key)
+        return [(m, b_int, tpt) for (_, m, b_int, tpt) in cand]
+
+    # Choose by slope magnitude ordering; "smallest" or "largest"
+    if prefer == "largest":
+        chosen = max(cand, key=lambda t: t[0])
+    else:  # "smallest"
+        chosen = min(cand, key=lambda t: t[0])
+
+    _, m, b_int, tpt = chosen
+    return (m, b_int, tpt)
