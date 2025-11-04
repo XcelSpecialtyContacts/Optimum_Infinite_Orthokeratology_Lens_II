@@ -34,7 +34,11 @@ from oiol2.geometry.meridional import (
     generate_upper_semi_circle_path,
     generate_lower_semi_circle_path,
     calc_bs_edge_data,
-    tangent_line_from_external_point
+    tangent_line_from_external_point,
+    trim_curve_by_x,
+    concat_point_lists,
+    reverse_points,
+    curve_length
 )
 from oiol2.geometry_core import (
     conic_line_intersections,
@@ -858,30 +862,55 @@ def main(argv: list[str] | None = None) -> int:
     ########################
 
     ########################
+    # Compute the Base Surface Flat Meridian
+    bs_meridian_flat_points = concat_point_lists(bcoz_points, bsrz_flat_points) # concatenate BC Optic Zone with BS Reverse Zone
+    temp_points = trim_curve_by_x(bslz_flat_ext_points, x_end = bs_lz_to_ez_blend_flat_tangent_p_1[0])
+    bs_meridian_flat_points = concat_point_lists(bs_meridian_flat_points, temp_points) # concatenate BS Meridian with BS Landing Zone
+    bs_meridian_flat_points = concat_point_lists(bs_meridian_flat_points, bs_lz_to_ez_blend_flat_points) # concatenate BS Meridian with BS Landing Zone to Edge Zone Blend
+    temp_points = trim_curve_by_x(bsez_flat_ext_points, x_start = bs_lz_to_ez_blend_flat_tangent_p_2[0], x_end = bs_edge_radius_flat_tangent_el_p[0])
+    bs_meridian_flat_points = concat_point_lists(bs_meridian_flat_points, temp_points) # concatenate BS Meridian with BS Edge Zone
+    bs_meridian_flat_points = concat_point_lists(bs_meridian_flat_points, bs_edge_radius_flat_points) # concatenate BS Meridian with BS Edge Radius BS Side
+    temp_points = reverse_points(fs_edge_radius_flat_points)
+    bs_meridian_flat_points = concat_point_lists(bs_meridian_flat_points, temp_points) # concatenate BS Meridian with BS Edge Radius FS Side
+    ########################
+
+    ########################
+    # Compute the Base Surface Steep Meridian bs_meridian_steep_points
+    bs_meridian_steep_points = concat_point_lists(bcoz_points, bsrz_steep_points) # concatenate BC Optic Zone with BS Reverse Zone
+    temp_points = trim_curve_by_x(bslz_steep_ext_points, x_end = bs_lz_to_ez_blend_steep_tangent_p_1[0])
+    bs_meridian_steep_points = concat_point_lists(bs_meridian_steep_points, temp_points) # concatenate BS Meridian with BS Landing Zone
+    bs_meridian_steep_points = concat_point_lists(bs_meridian_steep_points, bs_lz_to_ez_blend_steep_points) # concatenate BS Meridian with BS Landing Zone to Edge Zone Blend
+    temp_points = trim_curve_by_x(bsez_steep_ext_points, x_start = bs_lz_to_ez_blend_steep_tangent_p_2[0], x_end = bs_edge_radius_steep_tangent_el_p[0])
+    bs_meridian_steep_points = concat_point_lists(bs_meridian_steep_points, temp_points) # concatenate BS Meridian with BS Edge Zone
+    bs_meridian_steep_points = concat_point_lists(bs_meridian_steep_points, bs_edge_radius_steep_points) # concatenate BS Meridian with BS Edge Radius BS Side
+    temp_points = reverse_points(fs_edge_radius_steep_points)
+    bs_meridian_steep_points = concat_point_lists(bs_meridian_steep_points, temp_points) # concatenate BS Meridian with BS Edge Radius FS Side
+    ########################
+
+    ########################
+    # Compute the Front Surface Flat Meridian
+    fs_meridian_flat_points = concat_point_lists(fcoz_points, fspc1_flat_points) # concatenate FC Optic Zone with FS PC1
+    fs_meridian_flat_points = concat_point_lists(fs_meridian_flat_points, fsez_flat_points) # concatenate FS Meridian with FS Edge Zone
+    ########################
+
+    ########################
+    # curve_length
+    bs_curve_length = curve_length(bs_meridian_flat_points)
+    fs_curve_length = curve_length(fs_meridian_flat_points)
+    print(f"Base Surface curve length: {bs_curve_length}")
+    print(f"Front Surface curve length: {fs_curve_length}")
+    ########################
+
+    ########################
     # Plot the curves
     plot_meridional_curves(
         [
-            Curve(label="Base Surface Optic Zone", points=bcoz_points),
-            Curve(label="Front Surface Optic Zone", points=fcoz_points),
-            Curve(points=jt1_points),
-            Curve(points=bsrz_flat_points),
-            Curve(points=bslz_flat_ext_points),
-            Curve(points=bsez_flat_ext_points),
-            Curve(points=bs_lz_to_ez_blend_flat_points),
-            Curve(points=bs_edge_radius_flat_points),
-            Curve(points=jt2_flat_points),
-            Curve(points=fsez_flat_points),
-            Curve(points=fs_edge_radius_flat_points),
-            Curve(label="Front Surface Peripheral Curve 1", points=fspc1_flat_points)
+            Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points),
+            Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points)
         ],
         title="Optimum Infinite Orthokeratology Lens II",
         xlim=(0, 8)
     )
-    ########################
-
-    ########################
-    # Compute the Base Surface Flat Meridian
-    
     ########################
 
     return 0

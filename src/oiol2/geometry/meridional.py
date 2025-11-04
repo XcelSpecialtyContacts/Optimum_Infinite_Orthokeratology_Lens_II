@@ -5,7 +5,8 @@ import math
 from math import hypot, sqrt, isclose, inf
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Iterable, List, Sequence, Union
+from bisect import bisect_left, bisect_right
 
 from oiol2.geometry_core import (
     slope_and_angle_of_line_tangent_to_curve,
@@ -554,3 +555,187 @@ def tangent_line_from_external_point(center, r, point, prefer="smallest"):
 
     _, m, b_int, tpt = chosen
     return (m, b_int, tpt)
+
+Point = Tuple[float, float]
+PointsLike = Union[List[Point], np.ndarray]
+PointsLike2 = Union[Sequence[Point], np.ndarray]
+
+def _interp(p0: Point, p1: Point, x: float) -> float:
+    """Linear interpolation of y at x between two points p0, p1 with distinct x."""
+    (x0, y0), (x1, y1) = p0, p1
+    if x1 == x0:
+        return y0
+    t = (x - x0) / (x1 - x0)
+    return y0 + t * (y1 - y0)
+
+def trim_curve_by_x(
+    points: Sequence[Point],
+    x_start: Optional[float] = None,
+    x_end: Optional[float] = None,
+    *,
+    require_strict_x_increase: bool = True
+) -> List[Point]:
+    """
+    Trim a 2D curve (list of (x, y) points) to the closed interval [x_start, x_end].
+    - If x_start is None, use the first x in `points`.
+    - If x_end is None, use the last x in `points`.
+    - If x_start/x_end aren’t exact vertices, the corresponding y is linearly interpolated.
+    - Assumes the x values are monotonic increasing (strict by default).
+
+    Returns a new list beginning at x_start and ending at x_end (inclusive).
+
+    Raises:
+      ValueError for invalid inputs (range, monotonicity, etc.).
+    """
+    if len(points) < 2:
+        raise ValueError("Need at least two points.")
+
+    xs = [p[0] for p in points]
+
+    # Monotonicity check
+    for i in range(1, len(xs)):
+        if require_strict_x_increase:
+            if not (xs[i] > xs[i-1]):
+                raise ValueError("x values must be strictly increasing.")
+        else:
+            if not (xs[i] >= xs[i-1]):
+                raise ValueError("x values must be non-decreasing.")
+
+    # Default bounds if omitted
+    if x_start is None:
+        x_start = xs[0]
+    if x_end is None:
+        x_end = xs[-1]
+
+    if x_start > x_end:
+        raise ValueError("x_start must be <= x_end.")
+    if x_start < xs[0] or x_end > xs[-1]:
+        raise ValueError("x_start/x_end must lie within the input x-range.")
+
+    def y_at(x: float) -> float:
+        j = bisect_left(xs, x)
+        if j < len(xs) and xs[j] == x:
+            return points[j][1]
+        i0 = j - 1
+        i1 = j
+        return _interp(points[i0], points[i1], x)
+
+    y_s = y_at(x_start)
+    y_e = y_at(x_end)
+
+    trimmed: List[Point] = [(x_start, y_s)]
+
+    left = bisect_right(xs, x_start)   # first index with x > x_start
+    right = bisect_left(xs, x_end)     # first index with x >= x_end
+    for i in range(left, right):
+        trimmed.append(points[i])
+
+    if trimmed[-1][0] != x_end:
+        trimmed.append((x_end, y_e))
+
+    return trimmed
+
+def concat_point_lists(points1: PointsLike, points2: PointsLike) -> np.ndarray:
+    """
+    Concatenate two sequences of (x, y) points (lists or numpy arrays).
+
+    - Accepts either Python lists of tuples or numpy arrays of shape (N, 2).
+    - If the last point of points1 equals the first point of points2,
+      that duplicate is omitted.
+    - Returns a numpy array of shape (M, 2).
+
+    Example:
+        >>> concat_point_lists([(0,0), (1,1)], [(1,1), (2,2)])
+        array([[0., 0.],
+               [1., 1.],
+               [2., 2.]])
+    """
+    # Convert to numpy arrays
+    arr1 = np.asarray(points1, dtype=float).reshape(-1, 2)
+    arr2 = np.asarray(points2, dtype=float).reshape(-1, 2)
+
+    # Handle empty inputs safely
+    if arr1.size == 0:
+        return arr2.copy()
+    if arr2.size == 0:
+        return arr1.copy()
+
+    # Check for duplicate join point
+    if np.allclose(arr1[-1], arr2[0]):
+        return np.vstack((arr1, arr2[1:]))
+    else:
+        return np.vstack((arr1, arr2))
+
+def reverse_points(points: PointsLike) -> PointsLike:
+    """
+    Reverse the order of a list or numpy array of (x, y) points.
+
+    Accepts:
+        - list of (x, y) tuples
+        - numpy array of shape (N, 2)
+
+    Returns:
+        A new object of the same type with reversed order.
+
+    Example:
+        >>> reverse_points([(0,0), (1,1), (2,2)])
+        [(2.0, 2.0), (1.0, 1.0), (0.0, 0.0)]
+
+        >>> reverse_points(np.array([[0,0],[1,1],[2,2]]))
+        array([[2., 2.],
+               [1., 1.],
+               [0., 0.]])
+    """
+    if isinstance(points, np.ndarray):
+        # Reverse rows along the first axis
+        return points[::-1].copy()
+    else:
+        # Assume sequence of tuples/lists
+        return list(reversed(points))
+
+def curve_length(points: PointsLike2) -> float:
+    """
+    Compute the total length of a 2D polyline defined by (x, y) points.
+    Accepts: list/tuple of points or a NumPy array of shape (N, 2).
+    Returns 0.0 for fewer than 2 points.
+    """
+    arr = np.asarray(points, dtype=float)
+    if arr.size == 0:
+        return 0.0
+    arr = arr.reshape(-1, 2)
+    if arr.shape[0] < 2:
+        return 0.0
+
+    diffs = np.diff(arr, axis=0)
+    seglens = np.hypot(diffs[:, 0], diffs[:, 1])  # sqrt(dx^2 + dy^2)
+    return float(seglens.sum())
+
+def adaptive_curve_length(
+    points: PointsLike2,
+    tol: float = 1e-6,
+    max_iter: int = 8
+) -> float:
+    """
+    Refines the polyline by inserting midpoints iteratively until
+    the total length converges within `tol` or `max_iter` is reached.
+    Useful for curves with high curvature (e.g., spirals).
+
+    Returns a scalar length.
+    """
+    arr = np.asarray(points, dtype=float).reshape(-1, 2)
+    if arr.shape[0] < 2:
+        return 0.0
+
+    prev_len = curve_length(arr)
+    for _ in range(max_iter):
+        # Insert midpoints between every consecutive pair
+        mids = (arr[:-1] + arr[1:]) / 2.0
+        arr = np.column_stack([arr[:-1].ravel(), mids.ravel()]).reshape(-1, 2)
+        arr = np.vstack((arr, points[-1]))  # append original last point
+
+        new_len = curve_length(arr)
+        if abs(new_len - prev_len) <= tol:
+            return float(new_len)
+        prev_len = new_len
+
+    return float(prev_len)
