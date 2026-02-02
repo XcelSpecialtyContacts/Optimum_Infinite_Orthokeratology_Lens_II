@@ -1,9 +1,9 @@
 [paths]
 # Root directory where Lab Files live (sample you showed uses files like "C9359766")
-labfile_root = 'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_xcelftp'
+labfile_root = 'C:\Users\gilli\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_xcelftp'
 
 [output]
-dir = 'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_dacfiles'
+dir = 'C:\Users\gilli\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_dacfiles'
 file_stem_pattern = '{wo}_{surface}'  # {surface} in {'anterior','interior'}
 # A flexible line format so you can match DAC ALM easily (change spacing/precision if needed)
 point_format = '{x:.4f}\t{z:.4f}'
