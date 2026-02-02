@@ -12,7 +12,11 @@ title = 'Center Thickness'
 
 [lab_fields.BC]
 seg = '163'
-title = 'Base Curve'
+title = 'Base Curve Specified'
+
+[lab_fields.BC_actual]
+seg = 'L99'
+title = 'Base Curve produced'
 
 [lab_fields.BCOZDia]
 seg = '164'

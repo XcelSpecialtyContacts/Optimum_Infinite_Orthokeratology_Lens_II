@@ -56,7 +56,10 @@ def generate_optic_zone_meridional(lab_data: dict, num_points: int = 201) -> np.
         np.ndarray of shape (N, 2): columns are (x, z), with z = spherical sag.
     """
     # BC (radius) and Optic Zone Diameter (prefer BCOZDia; fallback OpticZoneDia; default 6.0mm)
-    R = _to_float(lab_data["BC"])
+    if lab_data['BC_actual']['value'] != "": # BC radius
+        R = _to_float(lab_data["BC_actual"])
+    else:
+        R = _to_float(lab_data["BC"])
     oz_dia = None
     if "BCOZDia" in lab_data:
         oz_dia = _to_float(lab_data["BCOZDia"])
@@ -739,3 +742,71 @@ def adaptive_curve_length(
         prev_len = new_len
 
     return float(prev_len)
+
+def resample_curve_by_arclength(points: np.ndarray, num_points: int) -> np.ndarray:
+    """
+    Resample a 2D curve so that `num_points` points are evenly spaced by arc length.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Array of shape (N, 2) containing the original curve points in order.
+        The curve may loop back on itself (x is not required to be monotonic).
+    num_points : int
+        Number of points in the resampled curve (must be >= 2).
+        The first and last points of the result will match the first and last
+        points of the input.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape (num_points, 2) with evenly spaced points along the curve.
+
+    Notes
+    -----
+    - Uses piecewise-linear interpolation along cumulative arc length.
+    - Handles zero-length segments by collapsing them before interpolation.
+    """
+    pts = np.asarray(points, dtype=float)
+
+    if pts.ndim != 2 or pts.shape[1] != 2:
+        raise ValueError(f"`points` must have shape (N, 2); got {pts.shape}")
+    if num_points < 2:
+        raise ValueError("`num_points` must be at least 2.")
+
+    # Compute segment lengths and cumulative arc length
+    deltas = pts[1:] - pts[:-1]           # (N-1, 2)
+    seg_lengths = np.sqrt((deltas ** 2).sum(axis=1))  # (N-1,)
+    cumlen = np.concatenate([[0.0], np.cumsum(seg_lengths)])  # (N,)
+
+    total_length = cumlen[-1]
+    if total_length == 0:
+        # All points identical — just repeat the same point
+        return np.tile(pts[0], (num_points, 1))
+
+    # Remove any zero-length segments so cumlen is strictly increasing for interp
+    mask = np.concatenate([[True], cumlen[1:] > cumlen[:-1]])
+    pts_clean = pts[mask]
+    cumlen_clean = cumlen[mask]
+
+    if pts_clean.shape[0] < 2:
+        # Degenerate after cleaning; fall back to repeating endpoints
+        return np.vstack([
+            np.tile(pts[0], (num_points - 1, 1)),
+            pts[-1],
+        ])
+
+    # Target arc-length positions, evenly spaced from 0 to total_length
+    s_target = np.linspace(0.0, total_length, num_points)
+
+    # Interpolate x(s) and y(s) separately
+    x_new = np.interp(s_target, cumlen_clean, pts_clean[:, 0])
+    y_new = np.interp(s_target, cumlen_clean, pts_clean[:, 1])
+
+    result = np.column_stack([x_new, y_new])
+
+    # Ensure exact match for endpoints (avoids any tiny floating error)
+    result[0] = pts[0]
+    result[-1] = pts[-1]
+
+    return result

@@ -23,6 +23,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 # Load modules specific to this project
 from oiol2.vis.plotting import plot_meridional_curves, Curve
+from oiol2.dac_pointfile_writer import write_base_surface_point_file, write_front_surface_point_file
 from oiol2.geometry.meridional import (
     generate_optic_zone_meridional,
     generate_front_optic_zone_meridional,
@@ -38,7 +39,8 @@ from oiol2.geometry.meridional import (
     trim_curve_by_x,
     concat_point_lists,
     reverse_points,
-    curve_length
+    curve_length,
+    resample_curve_by_arclength
 )
 from oiol2.geometry_core import (
     conic_line_intersections,
@@ -489,7 +491,10 @@ def main(argv: list[str] | None = None) -> int:
     ########################
     # Calculate the Front Curve optic zone radius, Center Thickness, and
     # Junction Thickness at the edge of optic zone
-    R0_back   = _to_float(lab_data["BC"]) # BC optic zone radius
+    if lab_data['BC_actual']['value'] != "":
+        R0_back = _to_float(lab_data["BC_actual"]) # BC radius that was actually produced
+    else:
+        R0_back = _to_float(lab_data["BC"]) # BC optic zone radius
     K_back    = 0.0  # conic constant for back optic zone: sphere in this design
     x_edge    = _to_float(lab_data["BCOZDia"]) / 2.0 # half cord distance for optic zone
     power_D   = _to_float(lab_data["Power"]) # Sphere power for the lens
@@ -894,19 +899,198 @@ def main(argv: list[str] | None = None) -> int:
     ########################
 
     ########################
-    # curve_length
-    bs_curve_length = curve_length(bs_meridian_flat_points)
-    fs_curve_length = curve_length(fs_meridian_flat_points)
-    print(f"Base Surface curve length: {bs_curve_length}")
-    print(f"Front Surface curve length: {fs_curve_length}")
+    # Compute the Front Surface Steep Meridian
+    fs_meridian_steep_points = concat_point_lists(fcoz_points, fspc1_steep_points) # concatenate FC Optic Zone with FS PC1
+    fs_meridian_steep_points = concat_point_lists(fs_meridian_steep_points, fsez_steep_points) # concatenate FS Meridian with FS Edge Zone
+    ########################
+
+    ########################
+    # Number of points the meridians will contain
+    bs_meridian_flat_curve_length = curve_length(bs_meridian_flat_points)
+    fs_meridian_flat_curve_length = curve_length(fs_meridian_flat_points)
+    bs_meridian_steep_curve_length = curve_length(bs_meridian_steep_points)
+    fs_meridian_steep_curve_length = curve_length(fs_meridian_steep_points)
+    bs_meridian_point_count = int(max([bs_meridian_flat_curve_length, bs_meridian_steep_curve_length]) / 0.005)
+    fs_meridian_point_count = int(max([fs_meridian_flat_curve_length, fs_meridian_steep_curve_length]) / 0.005)
+    print(f"Base Surface meridian point count: {bs_meridian_point_count}")
+    print(f"Front Surface meridian point count: {fs_meridian_point_count}")
+    ########################
+
+    ########################
+    # Resample meridian curves so that all the base surface meridians contain the same number of points.
+    # Resample meridian curves so that all the front surface meridians contain the same number of points.
+    bs_meridian_flat_points_rs = resample_curve_by_arclength(bs_meridian_flat_points, bs_meridian_point_count)
+    bs_meridian_steep_points_rs = resample_curve_by_arclength(bs_meridian_steep_points, bs_meridian_point_count)
+    fs_meridian_flat_points_rs = resample_curve_by_arclength(fs_meridian_flat_points, fs_meridian_point_count)
+    fs_meridian_steep_points_rs = resample_curve_by_arclength(fs_meridian_steep_points, fs_meridian_point_count)
+    ########################
+
+    ########################
+    # Create a dictionary with the point file header data.
+    header_data = {
+        "non_symmetric_base": {
+            "value": 0,
+            "comment": "rotationally symmetrical base surface"
+        },
+        "non_symmetric_front": {
+            "value": 0,
+            "comment": "rotationally symmetrical front surface"
+        },
+        "no_of_base_surfaces": {
+            "value": 1,
+            "comment": "number of continuous surfaces that make up the lens base surface"
+        },
+        "no_of_front_surfaces": {
+            "value": 1,
+            "comment": "number of continuous surfaces that make up the lens front surface"
+        },
+        "BC_horizontal": {
+            "value": _to_float(lab_data["BC"]),
+            "comment": "the base curve radius in the horizontal meridian (information only)"
+        },
+        "FC_horizontal": {
+            "value": FCR,
+            "comment": "the front curve radius in the horizontal meridian (information only)"
+        },
+        "BC_vertical": {
+            "value": _to_float(lab_data["BC"]),
+            "comment": "the base curve radius in the vertical meridian (information only)"
+        },
+        "FC_vertical": {
+            "value": FCR,
+            "comment": "the front curve radius in the vertical meridian (information only)"
+        },
+        "BCOZ_dia": {
+            "value": _to_float(lab_data["BCOZDia"]),
+            "comment": "the base curve optic zone diameter (information only)"
+        },
+        "FCOZ_dia": {
+            "value": fcoz_p_end[0] * 2,
+            "comment": "the front curve optic zone diameter (information only)"
+        },
+        "lens_dia": {
+            "value": _to_float(lab_data["Dia"]),
+            "comment": "lens diameter"
+        },
+        "no_of_parts_to_cut": {
+            "value": 0,
+            "comment": "number of parts to cut"
+        },
+        "ct": {
+            "value": CT,
+            "comment": "center thickness"
+        },
+        "lens_sag_bs": {
+            "value": round((bsez_flat_ext_p_end[1] + bsez_steep_ext_p_end[1]) / 2, 3),
+            "comment": "average base surface sag without edge radius (information only)"
+        },
+        "no_of_diag_marks": {
+            "value": 0,
+            "comment": "number of diagnostic marks"
+        },
+        "bs_surface_1": {
+            "non_symmetric": {
+                "value": 0,
+                "comment": "rotationally symmetrical surface"
+            },
+            "x_start": {
+                "value": min([bs_meridian_flat_points_rs[-1][0], bs_meridian_steep_points_rs[-1][0]]),
+                "comment": "x start distance from center"
+            },
+            "x_end": {
+                "value": 0.0,
+                "comment": "x end distance from center"
+            },
+            "junction_blend_radius": {
+                "value": 0,
+                "comment": "junction blend radius"
+            },
+            "angular_filtering": {
+                "value": 0,
+                "comment": "angular filtering (MAF iterations)"
+            },
+            "no_of_meridians": {
+                "value": 0,
+                "comment": "the number of meridians that constrain the surface"
+            },
+            "rotation_angle": {
+                "value": 0,
+                "comment": "the rotation angle that the first meridian will start at"
+            }
+        },
+        "fs_surface_1": {
+            "non_symmetric": {
+                "value": 0,
+                "comment": "rotationally symmetrical surface"
+            },
+            "x_start": {
+                "value": max([fs_meridian_flat_points_rs[-1][0], fs_meridian_steep_points_rs[-1][0]]),
+                "comment": "x start distance from center"
+            },
+            "x_end": {
+                "value": 0.0,
+                "comment": "x end distance from center"
+            },
+            "junction_blend_radius": {
+                "value": 0,
+                "comment": "junction blend radius"
+            },
+            "angular_filtering": {
+                "value": 0,
+                "comment": "angular filtering (MAF iterations)"
+            },
+            "no_of_meridians": {
+                "value": 0,
+                "comment": "the number of meridians that constrain the surface"
+            },
+            "rotation_angle": {
+                "value": 0,
+                "comment": "the rotation angle that the first meridian will start at"
+            }
+        }
+    }
+    # Determine if the design is rotationally non-symmetric
+    is_non_symmetric = (
+        _to_float(lab_data["RZDFlat"])  != _to_float(lab_data["RZDSteep"]) or
+        _to_float(lab_data["LZAFlat"])  != _to_float(lab_data["LZASteep"]) or
+        _to_float(lab_data["PECDFlat"]) != _to_float(lab_data["PECDSteep"])
+    )
+    if is_non_symmetric:
+        header_data["non_symmetric_base"]["value"] = 1
+        header_data["non_symmetric_base"]["comment"] = "non-rotationally symmetrical base surface"
+        header_data["non_symmetric_front"]["value"] = 1
+        header_data["non_symmetric_front"]["comment"] = "non-rotationally symmetrical front surface"
+        header_data["bs_surface_1"]["non_symmetric"]["value"] = 1
+        header_data["bs_surface_1"]["non_symmetric"]["comment"] = "non-rotationally symmetrical surface"
+        header_data["bs_surface_1"]["no_of_meridians"]["value"] = 4
+        header_data["fs_surface_1"]["non_symmetric"]["value"] = 1
+        header_data["fs_surface_1"]["non_symmetric"]["comment"] = "non-rotationally symmetrical surface"
+        header_data["fs_surface_1"]["no_of_meridians"]["value"] = 4
+    
+    test_path = Path.cwd() / "test_dacfiles"
+    print(f"BCR: {R0_back}")
+    ########################
+
+    ########################
+    # Plot the curves
+    write_base_surface_point_file(
+        args.wo,
+        header_data,
+        [bs_meridian_flat_points_rs, bs_meridian_steep_points_rs, bs_meridian_flat_points_rs, bs_meridian_steep_points_rs]
+    )
+    write_front_surface_point_file(
+        args.wo,
+        header_data,
+        [fs_meridian_flat_points_rs, fs_meridian_steep_points_rs, fs_meridian_flat_points_rs, fs_meridian_steep_points_rs]
+    )
     ########################
 
     ########################
     # Plot the curves
     plot_meridional_curves(
         [
-            Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points),
-            Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points)
+            Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points_rs),
+            Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points_rs)
         ],
         title="Optimum Infinite Orthokeratology Lens II",
         xlim=(0, 8)

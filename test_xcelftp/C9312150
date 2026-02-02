@@ -12,7 +12,7 @@ A11 SO Num                         12680282
 160 PC2                            9.40
 161 xcel.lens.diameter             10.5
 162 xcel.center.thickness          0.23
-163 central_base_curve_radius      8.70
+163 central_base_curve_radius      8.40
 164 optics.central_zone_diameter   6.0
 165 xcel.return_zone.depth.flat    0.525
 166 xcel.return_zone.depth.steep   0.525
