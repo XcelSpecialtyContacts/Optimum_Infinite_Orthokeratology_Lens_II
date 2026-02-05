@@ -397,6 +397,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=36,
         help="Starting column index for value field in fixed-width Lab File (default 36)",
     )
+    p.add_argument(
+        "--plot",
+        action="store_true",
+        help="If set, generate and show meridional plots and write visualization point files"
+    )
     return p.parse_args(argv)
 
 
@@ -1159,29 +1164,49 @@ def main(argv: list[str] | None = None) -> int:
     ########################
 
     ########################
-    # Plot the curves
-    write_base_surface_point_file(
-        args.wo,
-        header_data,
-        [bs_meridian_flat_points_rs, bs_meridian_steep_points_rs, bs_meridian_flat_points_rs, bs_meridian_steep_points_rs]
-    )
-    write_front_surface_point_file(
-        args.wo,
-        header_data,
-        [fs_meridian_flat_points_rs, fs_meridian_steep_points_rs, fs_meridian_flat_points_rs, fs_meridian_steep_points_rs]
-    )
-    ########################
+    # Optional plotting and point file export
+    if args.plot:
+        logger.info("Plotting flag enabled — generating meridional plots and point files")
 
-    ########################
-    # Plot the curves
-    plot_meridional_curves(
-        [
-            Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points_rs),
-            Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points_rs)
-        ],
-        title="Optimum Infinite Orthokeratology Lens II",
-        xlim=(0, 8)
-    )
+        write_base_surface_point_file(
+            args.wo,
+            header_data,
+            [
+                bs_meridian_flat_points_rs,
+                bs_meridian_steep_points_rs,
+                bs_meridian_flat_points_rs,   # repeated as per your original
+                bs_meridian_steep_points_rs
+            ]
+        )
+        write_front_surface_point_file(
+            args.wo,
+            header_data,
+            [
+                fs_meridian_flat_points_rs,
+                fs_meridian_steep_points_rs,
+                fs_meridian_flat_points_rs,   # repeated as per your original
+                fs_meridian_steep_points_rs
+            ]
+        )
+
+        plot_meridional_curves(
+            [
+                Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points_rs),
+                Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points_rs),
+                # Optionally add more curves if you want to compare steep meridians too:
+                # Curve(label="Base Surface Steep Meridian", points=bs_meridian_steep_points_rs, linestyle="--"),
+                # Curve(label="Front Surface Steep Meridian", points=fs_meridian_steep_points_rs, linestyle="--"),
+            ],
+            title="Optimum Infinite Orthokeratology Lens II",
+            xlim=(0, 8),
+            # You can also make these configurable later if needed:
+            # equal_aspect=True,
+            # grid=True,
+            # figsize=(8, 6),
+        )
+        logger.info("Plotting and point file export completed")
+    else:
+        logger.info("Plotting skipped (run with --plot to enable)")
     ########################
 
     return 0
