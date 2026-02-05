@@ -26,9 +26,12 @@ Thumbs.db
 
 # Logs & artifacts
 *.log
-logs/
 *.bin
 *.txt
+
+# Configs
+config.toml
+
 
 # Data you don’t want in repo (if any)
 # data/secret_*.*
