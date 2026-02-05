@@ -13,7 +13,7 @@ A modular, Python-driven pipeline that generates **DAC ALM**-compatible point fi
 
 **High-level flow**
 
-1. ALM calls E with args (work order, tool radius, output dir, etc.).
+1. ALM calls E with args (work order, output dir, etc.).
 2. E parses the Lab File and other inputs.
 3. E computes the Base/Front lens surfaces and writes **point files**.
 4. E returns an exit code to ALM.
@@ -23,9 +23,9 @@ A modular, Python-driven pipeline that generates **DAC ALM**-compatible point fi
 
 * `oiol2/config.py` – Config loading/validation (TOML), defaults.
 * `oiol2/labfile_parser.py` – Parse Lab Files and reference CSV/JSON tables.
-* `oiol2/geometry.py` – Optical math helpers (moved from `geometryfunctions02.py`).
+* `oiol2/geometry.py` – Optical math helpers (see `geometryfunctions02.py` for the original versions of these fuctions).
 * `oiol2/surface_generator.py` – Builds Base/Front surfaces from parameters.
-* `oiol2/dac_pointfile_writer.py` – Emits ALM/DAC-compatible point files.
+* `oiol2/dac_pointfile_writer.py` – Create ALM/DAC-compatible point files.
 * `oiol2/main.py` – CLI entry point orchestrating the pipeline.
 
 ---
@@ -42,6 +42,7 @@ optimum_infinite_orthokeratology_lens_ii/
 │     ├─ labfile_parser.py
 │     ├─ geometry.py
 │     ├─ surface_generator.py
+│     ├─ helper.py
 │     └─ dac_pointfile_writer.py
 ├─ configs/
 │  └─ config.toml            # Project settings (paths, timeouts, naming)
@@ -122,8 +123,12 @@ keep_hours = 0  # 0 means to keep them indefinately
 
 ```powershell
 # From repo root with env active
-python -m oiol2 --wo 8280256 --tool-rad 0.501 --labfile X8280256 \
+python -m oiol2 --wo 9312150 --tool-rad 0.501 --labfile C9312150 \
   --output-dir "D:/PointFiles" --config "configs/config.toml" --verbose
+```
+Here is how I use it locally for testing
+```powershell
+python -m src.oiol2.main --wo 9312150
 ```
 
 **Arguments**

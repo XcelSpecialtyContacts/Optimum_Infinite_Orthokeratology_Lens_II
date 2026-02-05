@@ -17,7 +17,7 @@ If you are porting from legacy `geometryfunctions02.py`, see the bottom
 of this file for a sample "compat shim" pattern you can extend to keep
 old call sites working while you migrate.
 
-Author: oiol2 team
+Author: Allen Gilliard
 """
 
 from __future__ import annotations

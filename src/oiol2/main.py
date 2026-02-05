@@ -1,21 +1,24 @@
 # src/oiol2/main.py
 from __future__ import annotations
 
-import pathlib, sys
+#*
+from pathlib import Path # Needed for handling OS paths, makes it cleaner
+import sys # Access to system-specific parameters and functions
 # Add <repo>/src to sys.path so 'oiol2' is importable when running from repo root
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-import argparse
-import logging
-import sys
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Mapping, Optional
-#import re
+import argparse # for command line argument parsing
+import logging #* for logging and debugging
+import time #* needed for cleaning up log file
+from datetime import datetime, timedelta #* needed for cleaning up log file
+from dataclasses import dataclass # Needed for storing data in memory
+from typing import Any, Mapping, Optional # Needed for handling data types
 
+#*
+# For parsing TOML files
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:  # pragma: no cover
@@ -42,6 +45,7 @@ from oiol2.geometry.meridional import (
     curve_length,
     resample_curve_by_arclength
 )
+
 from oiol2.geometry_core import (
     conic_line_intersections,
     distance_between_points,
@@ -50,6 +54,21 @@ from oiol2.geometry_core import (
     slope_and_angle_of_line_tangent_to_curve,
     sigmoid_segment_with_end_slopes,
     point_along_line
+)
+
+from oiol2.helper import (
+    repo_root_from_this_file,
+    default_config_path,
+    default_lab_spec_path,
+    ensure_labfile_importable,
+    default_logs_dir,
+    ensure_dirs,
+    default_design_path,
+    load_toml_file,
+    load_toml,
+    _expand_pathlike,
+    _coerce_float,
+    summarize_lab_result
 )
 
 # -----------------------
@@ -100,71 +119,8 @@ class LensDesign:
     params: Mapping[str, ParamSpec]
 
 # -----------------------
-# Helpers
+# Helpers not in helpers.py
 # -----------------------
-
-#_number_re = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)")
-
-def repo_root_from_this_file() -> Path:
-    """
-    Resolve project root assuming this file lives at src/oiol2/main.py.
-    Root = <repo>/
-    """
-    here = Path(__file__).resolve()
-    # .../src/oiol2/main.py -> .../src -> .../
-    return here.parent.parent.parent
-
-
-def default_config_path() -> Path:
-    return repo_root_from_this_file() / "configs" / "config.toml"
-
-def default_lab_spec_path() -> Path:
-    return repo_root_from_this_file() / "configs" / "lab_file.toml"
-
-def ensure_labfile_importable() -> None:
-    """
-    Make the repo root importable so `import labfile` works when running as a module.
-    """
-    root = str(repo_root_from_this_file())
-    if root not in sys.path:
-        sys.path.insert(0, root)
-
-def default_logs_dir() -> Path:
-    return repo_root_from_this_file() / "logs"
-
-def ensure_dirs(cfg: AppConfig) -> None:
-    """
-    Create any required directories if they don't exist (e.g., output dir, logs dir).
-    """
-    cfg.output.dir.mkdir(parents=True, exist_ok=True)
-    default_logs_dir().mkdir(parents=True, exist_ok=True)
-
-def default_design_path() -> Path:
-    return repo_root_from_this_file() / "data" / "lens_design.toml"
-
-def load_toml_file(path: Path) -> dict[str, Any]:
-    with path.open("rb") as f:
-        return tomllib.load(f)
-
-def _expand_pathlike(v: Any) -> Path:
-    """
-    Expand env vars and ~ and return a Path. Accepts str or Path.
-    """
-    if isinstance(v, Path):
-        s = str(v)
-    else:
-        s = str(v)
-    s = Path(s).expanduser()
-    # Expand any %VAR% (Windows) or $VAR (POSIX) via os.path.expandvars
-    import os
-    s = os.path.expandvars(str(s))
-    return Path(s)
-
-def load_toml(config_path: Path) -> dict[str, Any]:
-    with config_path.open("rb") as f:
-        return tomllib.load(f)
-
-
 def validate_and_build(cfg: dict[str, Any]) -> AppConfig:
     # --- [paths] ---
     try:
@@ -241,12 +197,6 @@ def validate_and_build(cfg: dict[str, Any]) -> AppConfig:
         ),
     )
 
-def _coerce_float(name: str, v: Any) -> float:
-    try:
-        return float(v)
-    except Exception as e:
-        raise ValueError(f"Expected a number for '{name}', got {v!r}") from e
-
 def _parse_param_block(path_key: str, block: dict[str, Any]) -> ParamSpec:
     # Required keys with simple coercion
     try:
@@ -292,8 +242,53 @@ def load_lens_design(design_path: Path) -> LensDesign:
 
     return LensDesign(meta=meta, params=params)
 
-def setup_logging() -> None:
-    log_path = default_logs_dir() / "oiol2.log"
+def cleanup_old_logs(max_age_hours: float = 24.0) -> None:
+    #
+    # Delete log files in the logs directory that are older than max_age_hours.
+    #
+    logs_dir = default_logs_dir()
+    if not logs_dir.exists():
+        return
+
+    cutoff_time = datetime.now().timestamp() - (max_age_hours * 3600)
+
+    deleted_count = 0
+    for log_file in logs_dir.glob("oiol2-*.log"):
+        if log_file.is_file():
+            try:
+                # Using modification time is usually good enough
+                mtime = log_file.stat().st_mtime
+                if mtime < cutoff_time:
+                    log_file.unlink()
+                    deleted_count += 1
+                    print(f"Deleted old log: {log_file.name}")
+            except Exception as e:
+                print(f"Failed to delete {log_file.name}: {e}")
+
+    if deleted_count > 0:
+        print(f"Cleanup: removed {deleted_count} old log file(s)")
+    else:
+        existing = list(logs_dir.glob("oiol2-*.log"))
+        if existing:
+            print(f"No logs older than {max_age_hours}h found ({len(existing)} current log files)")
+        else:
+            print("No existing log files found")
+
+
+def setup_logging() -> logging.Logger:
+    #
+    # Creates a new timestamped log file for each run.
+    # Returns the configured logger.
+    #
+    logs_dir = default_logs_dir()
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create new log file with timestamp for each run
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    log_filename = f"oiol2-{timestamp}.log"
+    log_path = logs_dir / log_filename
+
+    # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
@@ -301,8 +296,12 @@ def setup_logging() -> None:
             logging.FileHandler(log_path, encoding="utf-8"),
             logging.StreamHandler(sys.stdout),
         ],
+        force=True  # reset any previous configuration
     )
 
+    logger = logging.getLogger("oiol2")
+    logger.info(f"Logging started - log file: {log_path.name}")
+    return logger
 
 def summarize_config(cfg: AppConfig) -> str:
     # A concise, human-readable summary for quick verification
@@ -358,17 +357,6 @@ def summarize_lens_design(ld: LensDesign, sample_keys: Optional[list[str]] = Non
     lines.append("=======================================")
     return "\n".join(lines)
 
-def summarize_lab_result(d: dict[str, Any]) -> str:
-    keys = ["BC", "Dia", "Power"]
-    lines = ["=== Loaded Lab File (selected fields) ==="]
-    for k in keys:
-        if k in d:
-            lines.append(f"{k}: {d[k]}")
-    if len(lines) == 1:
-        lines.append("(no standard keys found; loaded dictionary keys: " + ", ".join(sorted(d.keys())) + ")")
-    lines.append("=========================================")
-    return "\n".join(lines)
-
 # -----------------------
 # CLI
 # -----------------------
@@ -413,6 +401,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
+    cleanup_old_logs(max_age_hours=24.0)
     setup_logging()
 
     logger = logging.getLogger("oiol2.main")
@@ -486,6 +475,8 @@ def main(argv: list[str] | None = None) -> int:
     ########################
     # Calculate the Base Curve optic zone radius bcoz_points
     bcoz_points = generate_optic_zone_meridional(lab_data, int((_to_float(lab_data["BCOZDia"]) / 2.0) / 0.0005))
+
+    logger.info("\nBCOZ apex point: %s \nBCOZ end point: %s", str(bcoz_points[0]), str(bcoz_points[-1]))
     ########################
 
     ########################
@@ -540,15 +531,11 @@ def main(argv: list[str] | None = None) -> int:
         max_iter=5000,
     )
 
-    logger.info(
-        "JT solve: converged=%s, iters=%d, CT=%.3f mm, FCR=%.3f mm, JT=%.3f mm%s",
-        result.converged, result.iterations, result.ct, result.fcr, result.jt1,
-        f" | note: {result.note}" if result.note else "",
-    )
-
     CT  = result.ct
     FCR = result.fcr
     JT1 = result.jt1
+
+    logger.info("\nCT = %.3f, FCR = %.3f, JT1 = %.3f", CT, FCR, JT1)
     ########################
 
     ########################
@@ -560,16 +547,24 @@ def main(argv: list[str] | None = None) -> int:
     pts = conic_line_intersections(jt1_m, jt1_b, FCR, 0.0, -CT)
     fcoz_p_end = min(pts, key=lambda q: distance_between_points(bcoz_p_end, q))
     fcoz_points = generate_front_optic_zone_meridional(0.0, fcoz_p_end[0], CT, FCR, False, int(fcoz_p_end[0] / 0.0005))
+
+    logger.info("\nFCOZ apex: %s \nFCOZ End: %s", fcoz_points[0], fcoz_points[-1])
     ########################
 
     ########################
     # Calculate JT1 points
     jt1_points = generate_line_path(bcoz_p_end[0], fcoz_p_end[0], jt1_m, jt1_b, int(JT1 / 0.0005))
+
+    logger.info("\nJT1 Base Surface point: %s \
+                 \nJT1 Front Surface point: %s", \
+                 jt1_points[0], jt1_points[-1])
     ########################
 
     ########################
     # Calculate Landing Zone Width
     LZW = _to_float(lab_data["Dia"]) / 2 - _to_float(lab_data["BCOZDia"]) / 2 - lens_design.params["return_zone.width"].default - lens_design.params["peripheral_edge_curve.width"].default
+    
+    logger.info("\nLZW = %.3f", LZW)
     ########################
 
     ########################
@@ -585,6 +580,10 @@ def main(argv: list[str] | None = None) -> int:
         bslz_flat_b,
         int(LZW / 0.0005)
     )
+    logger.info("\nLanding Zone angle, flat: %.3f \
+                 \nBase Surface Landing Zone start point, flat axis: %s \
+                 \nBase Surface Landing Zone (extended path) end point, flat axis: %s", \
+                 _to_float(lab_data["LZAFlat"]), bslz_flat_ext_points[0], bslz_flat_ext_points[-1])
     ########################
 
     ########################
@@ -600,6 +599,10 @@ def main(argv: list[str] | None = None) -> int:
         bslz_steep_b,
         int(LZW / 0.0005)
     )
+    logger.info("\nLanding Zone angle, steep: %.3f \
+                 \nBase Surface Landing Zone start point, steep axis: %s \
+                 \nBase Surface Landing Zone (extended path) end point, steep axis: %s", \
+                 _to_float(lab_data["LZASteep"]), bslz_steep_ext_points[0], bslz_steep_ext_points[-1])
     ########################
     
     ########################
@@ -615,6 +618,11 @@ def main(argv: list[str] | None = None) -> int:
         bsrz_flat_m_end,
         int(lens_design.params["return_zone.width"].default / 0.0005)
     )
+    logger.info("\nReturn Zone Width: %.3f \
+                 \nReturn Zone Depth, flat: %.3f \
+                 \nReturn Zone start point, flat axis: %s \
+                 \nReturn Zone end point, flat axis: %s", \
+                 lens_design.params["return_zone.width"].default, _to_float(lab_data["RZDFlat"]), bsrz_flat_points[0], bsrz_flat_points[-1])
     ########################
 
     ########################
@@ -630,6 +638,11 @@ def main(argv: list[str] | None = None) -> int:
         bsrz_steep_m_end,
         int(lens_design.params["return_zone.width"].default / 0.0005)
     )
+    logger.info("\nReturn Zone Width: %.3f \
+                 \nReturn Zone Depth, steep: %.3f \
+                 \nReturn Zone start point, steep axis: %s \
+                 \nReturn Zone end point, steep axis: %s", \
+                 lens_design.params["return_zone.width"].default, _to_float(lab_data["RZDSteep"]), bsrz_steep_points[0], bsrz_steep_points[-1])
     ########################
 
     ########################
@@ -651,6 +664,11 @@ def main(argv: list[str] | None = None) -> int:
         bsez_flat_b,
         int(lens_design.params["peripheral_edge_curve.width"].default / 0.0005)
     )
+    logger.info("\nBase Surface Edge Curve width, flat axis: %.3f \
+                 \nBase Surface Edge Curve depth, flat axis: %.3f \
+                 \nBase Surface Edge Curve (extended path) start point, flat axis: %s \
+                 \nBase Surface Edge Curve (extended path) end point, flat axis: %s", \
+                 lens_design.params["peripheral_edge_curve.width"].default, _to_float(lab_data["PECDFlat"]), bsez_flat_ext_points[0], bsez_flat_ext_points[-1])
     ########################
 
     ########################
@@ -672,6 +690,11 @@ def main(argv: list[str] | None = None) -> int:
         bsez_steep_b,
         int(lens_design.params["peripheral_edge_curve.width"].default / 0.0005)
     )
+    logger.info("\nBase Surface Edge Curve width, flat axis: %.3f \
+                 \nBase Surface Edge Curve depth, flat axis: %.3f \
+                 \nBase Surface Edge Curve (extended path) start point, steep axis: %s \
+                 \nBase Surface Edge Curve (extended path) end point, steep axis: %s", \
+                 lens_design.params["peripheral_edge_curve.width"].default, _to_float(lab_data["PECDSteep"]), bsez_steep_ext_points[0], bsez_steep_ext_points[-1])
     ########################
 
     ########################
@@ -690,6 +713,9 @@ def main(argv: list[str] | None = None) -> int:
         bs_lz_to_ez_blend_flat_tangent_p_2[0],
         int((bs_lz_to_ez_blend_flat_tangent_p_2[0] - bs_lz_to_ez_blend_flat_tangent_p_1[0]) / 0.0005)
     )
+    logger.info("\nBlend Zone between Landing Zone and Edge Zone start point, flat axis: %s \
+                 \nBlend Zone between Landing Zone and Edge Zone end point, flat axis: %s", \
+                 bs_lz_to_ez_blend_flat_points[0], bs_lz_to_ez_blend_flat_points[-1])
     ########################
 
     ########################
@@ -708,6 +734,9 @@ def main(argv: list[str] | None = None) -> int:
         bs_lz_to_ez_blend_steep_tangent_p_2[0],
         int((bs_lz_to_ez_blend_steep_tangent_p_2[0] - bs_lz_to_ez_blend_steep_tangent_p_1[0]) / 0.0005)
     )
+    logger.info("\nBlend Zone between Landing Zone and Edge Zone start point, steep axis: %s \
+                 \nBlend Zone between Landing Zone and Edge Zone end point, steep axis: %s", \
+                 bs_lz_to_ez_blend_steep_points[0], bs_lz_to_ez_blend_steep_points[-1])
     ########################
 
     ########################
@@ -725,9 +754,10 @@ def main(argv: list[str] | None = None) -> int:
         bs_edge_radius_flat_tangent_vert_p[0],
         int((bs_edge_radius_flat_tangent_vert_p[0] - bs_edge_radius_flat_tangent_el_p[0]) / 0.0005)
     )
-    temp_r = _to_float(lab_data["ET"]) / 2
-    print(f"edge r: {temp_r}")
-    print(f"center: {bs_edge_radius_flat_center_p}")
+    logger.info("\nEdge Radius: %.3f \
+                 \nBase Surface Edge Radius start point, flat axis: %s \
+                 \nBase Surface Edge Radius end point, flat axis: %s", \
+                 _to_float(lab_data["ET"]) / 2, bs_edge_radius_flat_points[0], bs_edge_radius_flat_points[-1])
     ########################
 
     ########################
@@ -745,11 +775,16 @@ def main(argv: list[str] | None = None) -> int:
         bs_edge_radius_steep_tangent_vert_p[0],
         int((bs_edge_radius_steep_tangent_vert_p[0] - bs_edge_radius_steep_tangent_el_p[0]) / 0.0005)
     )
+    logger.info("\nEdge Radius: %.3f \
+                 \nBase Surface Edge Radius start point, steep axis: %s \
+                 \nBase Surface Edge Radius end point, steep axis: %s", \
+                 _to_float(lab_data["ET"]) / 2, bs_edge_radius_steep_points[0], bs_edge_radius_steep_points[-1])
     ########################
 
     ########################
     # Compute Junction Thickness at Landing Zone and Edge Zone
     JT2 = _to_float(lab_data["ET"]) + 0.03
+    logger.info("\nJT2 = %.3f", JT2)
     ########################
 
     ########################
@@ -764,6 +799,9 @@ def main(argv: list[str] | None = None) -> int:
         jt2_flat_b,
         int(JT2 / 0.0005)
     )
+    logger.info("\nJT1 point on Base Surface, flat axis: %s \
+                 \nJT1 point on Front Surface, flat axis: %s", \
+                 jt2_flat_points[0], jt2_flat_points[-1])
     ########################
 
     ########################
@@ -778,6 +816,9 @@ def main(argv: list[str] | None = None) -> int:
         jt2_steep_b,
         int(JT2 / 0.0005)
     )
+    logger.info("\nJT1 point on Base Surface, steep axis: %s \
+                 \nJT1 point on Front Surface, steep axis: %s", \
+                 jt2_steep_points[0], jt2_steep_points[-1])
     ########################
 
     ########################
@@ -795,6 +836,9 @@ def main(argv: list[str] | None = None) -> int:
         fsez_flat_b,
         int((fsez_flat_p_end[0] - fsez_flat_p_start[0]) / 0.0005)
     )
+    logger.info("\nFront Surface Peripheral Edge Zone start point, flat axis: %s \
+                 \nFront Surface Peripheral Edge Zone end point, flat axis: %s", \
+                 fsez_flat_points[0], fsez_flat_points[-1])
     ########################
 
     ########################
@@ -812,6 +856,9 @@ def main(argv: list[str] | None = None) -> int:
         fsez_steep_b,
         int((fsez_steep_p_end[0] - fsez_steep_p_start[0]) / 0.0005)
     )
+    logger.info("\nFront Surface Peripheral Edge Zone start point, steep axis: %s \
+                 \nFront Surface Peripheral Edge zone end point, steep axis: %s", \
+                 fsez_steep_points[0], fsez_steep_points[-1])
     ########################
 
     ########################
@@ -823,6 +870,10 @@ def main(argv: list[str] | None = None) -> int:
         bs_edge_radius_flat_tangent_vert_p[0],
         int((bs_edge_radius_flat_tangent_vert_p[0] - fsez_flat_p_end[0]) / 0.0005)
     )
+    logger.info("\nEdge Radius: %.3f \
+                 \nFront Surface Edge Radius start point, flat axis: %s \
+                 \nFront Surface Edge Radius end point, flat axis: %s", \
+                 _to_float(lab_data["ET"]) / 2, fs_edge_radius_flat_points[0], fs_edge_radius_flat_points[-1])
     ########################
 
     ########################
@@ -834,6 +885,10 @@ def main(argv: list[str] | None = None) -> int:
         bs_edge_radius_steep_tangent_vert_p[0],
         int((bs_edge_radius_steep_tangent_vert_p[0] - fsez_steep_p_end[0]) / 0.0005)
     )
+    logger.info("\nEdge Radius: %.3f \
+                 \nFront Surface Edge Radius start point, steep axis: %s \
+                 \nFront Surface Edge Radius end point, steep axis: %s", \
+                 _to_float(lab_data["ET"]) / 2, fs_edge_radius_steep_points[0], fs_edge_radius_steep_points[-1])
     ########################
 
     ########################
@@ -849,6 +904,9 @@ def main(argv: list[str] | None = None) -> int:
         fspc1_flat_m_end,
         int((fspc1_flat_p_end[0] - fspc1_flat_p_start[0]) / 0.0005)
     )
+    logger.info("\nFront Surface Peripheral Curve between Optic Zone and Edge Zone start point, flat axis: %s \
+                 \nFront Surface Peripheral Curve between Optic Zone and Edge Zone end point, flat axis: %s", \
+                 fspc1_flat_points[0], fspc1_flat_points[-1])
     ########################
 
     ########################
@@ -864,6 +922,9 @@ def main(argv: list[str] | None = None) -> int:
         fspc1_steep_m_end,
         int((fspc1_steep_p_end[0] - fspc1_steep_p_start[0]) / 0.0005)
     )
+    logger.info("\nFront Surface Peripheral Curve between Optic Zone and Edge Zone start point, steep axis: %s \
+                 \nFront Surface Peripheral Curve between Optic Zone and Edge Zone end point, steep axis: %s", \
+                 fspc1_steep_points[0], fspc1_steep_points[-1])
     ########################
 
     ########################
@@ -877,6 +938,9 @@ def main(argv: list[str] | None = None) -> int:
     bs_meridian_flat_points = concat_point_lists(bs_meridian_flat_points, bs_edge_radius_flat_points) # concatenate BS Meridian with BS Edge Radius BS Side
     temp_points = reverse_points(fs_edge_radius_flat_points)
     bs_meridian_flat_points = concat_point_lists(bs_meridian_flat_points, temp_points) # concatenate BS Meridian with BS Edge Radius FS Side
+    logger.info("\nBase Surface flat meridional line start point: %s \
+                 \nBase Surface flat meridional line end point: %s", \
+                 bs_meridian_flat_points[0], bs_meridian_flat_points[-1])
     ########################
 
     ########################
@@ -890,18 +954,27 @@ def main(argv: list[str] | None = None) -> int:
     bs_meridian_steep_points = concat_point_lists(bs_meridian_steep_points, bs_edge_radius_steep_points) # concatenate BS Meridian with BS Edge Radius BS Side
     temp_points = reverse_points(fs_edge_radius_steep_points)
     bs_meridian_steep_points = concat_point_lists(bs_meridian_steep_points, temp_points) # concatenate BS Meridian with BS Edge Radius FS Side
+    logger.info("\nBase Surface steep meridional line start point: %s \
+                 \nBase Surface steep meridional line end point: %s", \
+                 bs_meridian_steep_points[0], bs_meridian_steep_points[-1])
     ########################
 
     ########################
     # Compute the Front Surface Flat Meridian
     fs_meridian_flat_points = concat_point_lists(fcoz_points, fspc1_flat_points) # concatenate FC Optic Zone with FS PC1
     fs_meridian_flat_points = concat_point_lists(fs_meridian_flat_points, fsez_flat_points) # concatenate FS Meridian with FS Edge Zone
+    logger.info("\nFront Surface flat meridional line start point: %s \
+                 \nFront Surface flat meridional line end point: %s", \
+                 fs_meridian_flat_points[0], fs_meridian_flat_points[-1])
     ########################
 
     ########################
     # Compute the Front Surface Steep Meridian
     fs_meridian_steep_points = concat_point_lists(fcoz_points, fspc1_steep_points) # concatenate FC Optic Zone with FS PC1
     fs_meridian_steep_points = concat_point_lists(fs_meridian_steep_points, fsez_steep_points) # concatenate FS Meridian with FS Edge Zone
+    logger.info("\nFront Surface steep meridional line start point: %s \
+                 \nFront Surface steep meridional line end point: %s", \
+                 fs_meridian_steep_points[0], fs_meridian_steep_points[-1])
     ########################
 
     ########################
@@ -912,8 +985,9 @@ def main(argv: list[str] | None = None) -> int:
     fs_meridian_steep_curve_length = curve_length(fs_meridian_steep_points)
     bs_meridian_point_count = int(max([bs_meridian_flat_curve_length, bs_meridian_steep_curve_length]) / 0.005)
     fs_meridian_point_count = int(max([fs_meridian_flat_curve_length, fs_meridian_steep_curve_length]) / 0.005)
-    print(f"Base Surface meridian point count: {bs_meridian_point_count}")
-    print(f"Front Surface meridian point count: {fs_meridian_point_count}")
+    logger.info("\nBase Surface meridian point count: %s \
+                 \nFront Surface meridian point count: %s", \
+                 bs_meridian_point_count, fs_meridian_point_count)
     ########################
 
     ########################
@@ -923,6 +997,18 @@ def main(argv: list[str] | None = None) -> int:
     bs_meridian_steep_points_rs = resample_curve_by_arclength(bs_meridian_steep_points, bs_meridian_point_count)
     fs_meridian_flat_points_rs = resample_curve_by_arclength(fs_meridian_flat_points, fs_meridian_point_count)
     fs_meridian_steep_points_rs = resample_curve_by_arclength(fs_meridian_steep_points, fs_meridian_point_count)
+    logger.info("\nBase Surface flat meridional line recalculated with computed point count start point: %s \
+                 \nBase Surface flat meridional line recalculated with computed point count end point: %s \
+                 \nBase Surface steep meridional line recalculated with computed point count start point: %s \
+                 \nBase Surface steep meridional line recalculated with computed point count end point: %s \
+                 \nFront Surface flat meridional line recalculated with computed point count start point: %s \
+                 \nFront Surface flat meridional line recalculated with computed point count end point: %s \
+                 \nFront Surface steep meridional line recalculated with computed point count start point: %s \
+                 \nFront Surface steep meridional line recalculated with computed point count end point: %s", \
+                 bs_meridian_flat_points_rs[0], bs_meridian_flat_points_rs[-1], \
+                 bs_meridian_steep_points_rs[0], bs_meridian_steep_points_rs[-1], \
+                 fs_meridian_flat_points_rs[0], fs_meridian_flat_points_rs[-1], \
+                 fs_meridian_steep_points_rs[0], fs_meridian_steep_points_rs[-1])
     ########################
 
     ########################
@@ -1067,8 +1153,8 @@ def main(argv: list[str] | None = None) -> int:
         header_data["fs_surface_1"]["non_symmetric"]["comment"] = "non-rotationally symmetrical surface"
         header_data["fs_surface_1"]["no_of_meridians"]["value"] = 4
     
-    test_path = Path.cwd() / "test_dacfiles"
-    print(f"BCR: {R0_back}")
+    #test_path = Path.cwd() / "test_dacfiles"
+    logger.info("\nIs this a toric periphery lens: %s", is_non_symmetric)
     ########################
 
     ########################
