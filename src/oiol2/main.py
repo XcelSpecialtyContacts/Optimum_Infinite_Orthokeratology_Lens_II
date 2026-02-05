@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path # Needed for handling OS paths, makes it cleaner
 import sys # Access to system-specific parameters and functions
 # Add <repo>/src to sys.path so 'oiol2' is importable when running from repo root
-ROOT = Path(__file__).resolve().parents[1]
+#ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
