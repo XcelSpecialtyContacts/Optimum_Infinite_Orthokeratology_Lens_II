@@ -83,8 +83,6 @@ def generate_optic_zone_meridional(lab_data: dict, num_points: int = 201) -> np.
 
     return np.column_stack((x, z))
 
-import numpy as np
-
 def generate_front_optic_zone_meridional(
     x_start: float,
     x_end: float,
@@ -810,3 +808,18 @@ def resample_curve_by_arclength(points: np.ndarray, num_points: int) -> np.ndarr
     result[-1] = pts[-1]
 
     return result
+
+def find_duplicate_x_with_tolerance(points, tol=1e-6):
+    """
+    Returns pairs of indices where x values are within tolerance.
+    """
+    duplicates = []
+
+    for i in range(len(points)):
+        x1 = points[i][0]
+        for j in range(i + 1, len(points)):
+            x2 = points[j][0]
+            if abs(x1 - x2) < tol:
+                duplicates.append((i, j))
+
+    return duplicates

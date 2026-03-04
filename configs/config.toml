@@ -1,7 +1,8 @@
 [paths]
 # Root directory where Lab Files live (sample you showed uses files like "C9359766")
 #labfile_root = 'C:\Users\gilli\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_xcelftp'
-labfile_root = 'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_xcelftp'
+#labfile_root = 'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_xcelftp'
+labfile_root = 'T:\'
 
 [output]
 #dir = 'C:\Users\gilli\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_dacfiles'

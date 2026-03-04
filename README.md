@@ -1,6 +1,6 @@
 # Optimum Infinite Orthokeratology Lens II (OIOL2)
 
-A modular, Python-driven pipeline that generates **DAC ALM**-compatible point files (Base and Front surfaces) for orthokeratology contact lenses. The code runs on a remote Windows 11 workstation ("E") and is invoked by a lathe-attached PC ("ALM"). The ALM machine supplies arguments (e.g., work order ID, tool radius, output directory), OIOL2 generates point files, returns an **exit code** to the caller, and writes the files to a shared/retrieved location.
+A modular, Python-driven pipeline that generates **DAC ALM**-compatible point files (Base and Front surfaces) for orthokeratology contact lenses (Lunara). The code runs on a remote Windows 11 workstation ("E") and is invoked by a lathe-attached PC ("ALM"). The ALM machine supplies arguments (e.g., work order ID, etc.), OIOL2 generates point files, returns an **exit code** to the caller, and writes the files to a shared/retrieved location.
 
 ---
 
@@ -8,16 +8,17 @@ A modular, Python-driven pipeline that generates **DAC ALM**-compatible point fi
 
 **Roles**
 
-* **ALM**: Lathe-side PC. Calls remote process, later retrieves generated point files. (Simulated here with a PowerShell script.)
+* **ALM**: Lathe-side PC. Calls remote process, later retrieves generated point files.
 * **E**: Remote Windows 11 workstation running a Conda env `pointfile` and the OIOL2 Python program.
 
 **High-level flow**
 
-1. ALM calls E with args (work order, output dir, etc.).
+1. ALM calls E with args (work order, etc.).
 2. E parses the Lab File and other inputs.
 3. E computes the Base/Front lens surfaces and writes **point files**.
-4. E returns an exit code to ALM.
-5. ALM retrieves the file(s) or reports an error.
+4. E saves the files to a common shared space.
+5. E returns an exit code to ALM.
+6. ALM retrieves the file(s) or reports an error.
 
 **Key modules**
 
@@ -34,31 +35,44 @@ A modular, Python-driven pipeline that generates **DAC ALM**-compatible point fi
 
 ```text
 optimum_infinite_orthokeratology_lens_ii/
-├─ src/
-│  └─ oiol2/
-│     ├─ __init__.py
-│     ├─ main.py
-│     ├─ config.py
-│     ├─ labfile_parser.py
-│     ├─ geometry.py
-│     ├─ surface_generator.py
-│     ├─ helper.py
-│     └─ dac_pointfile_writer.py
-├─ configs/
-│  └─ config.toml            # Project settings (paths, timeouts, naming)
+├─ configs/                  # Project settings (paths, timeouts, naming)
+│  ├─ config_sample.toml
+│  └─ lab_file.toml
 ├─ data/
 │  ├─ CRT_SKUs.csv
+│  ├─ lens_design.toml
 │  └─ lens_parameters.json
+├─ docs/
+│  ├─ design_mock_up_2510240940.dxf
+│  ├─ Lens_Design_Summary.md
+│  └─ PORTING.md
+├─ labfile/
+│  ├─ config.py
+│  └─ parser.py
+├─ logs/
 ├─ scripts/
+│  ├─ crt_lookup.py
 │  └─ simulate_alm.ps1       # Test harness that simulates the ALM PC
-├─ test_dacfiles/            # simulation for \\xcelprod04\dacfiles a.k.a. U:\ drive
-├─ test_xcelftp/             # simulation for \\xcelprod04\xcelftp a.k.a. T:\ drive
-│  └─ C9359766               # Test Lab File
-├─ tests/
-│  └─ test_smoke.py          # Minimal sanity tests
+├─ src/
+│  └─ oiol2/
+│     ├─ geometry/
+│     │  └─ meridional.py
+│     ├─ vis/                # For plotting the meridional curves
+│     │  └─ plotting.py
+│     ├─ __init__.py
+│     ├─ dac_pointfile_writer.py
+│     ├─ geometry_core.py
+│     ├─ geometryfunction02.py
+│     ├─ helper.py
+│     ├─ init.py
+│     ├─ labfile_parser.py
+│     ├─ main.py
+│     ├─ surface_generator.py
+│     └─ transform2d.py
 ├─ .gitignore
 ├─ environment.yml
 ├─ pyproject.toml            # for packaging/entry points (optional, not sure this is needed)
+├─ pytest.ini
 └─ README.md                 # this file
 ```
 
@@ -96,7 +110,7 @@ All runtime settings live in `configs/config.toml`. Example:
 # Where E writes the finished point files
 output_dir = "D:\\Projects\\XcelSpecialtyContacts\\Optimum_Infinite_Orthokeratology_Lens_II\\test_dacfiles"
 # Base folder where Lab Files live (can be a share)
-lab_root   = "D:\\Projects\\XcelSpecialtyContacts\\Optimum_Infinite_Orthokeratology_Lens_II\\test_dacfiles"
+lab_root   = "T:\\"
 # Optional temp working dir
 work_dir   = "D:\\Projects\\XcelSpecialtyContacts\\Optimum_Infinite_Orthokeratology_Lens_II\\src\\oiol2"
 
@@ -123,12 +137,12 @@ keep_hours = 0  # 0 means to keep them indefinately
 
 ```powershell
 # From repo root with env active
-python -m oiol2 --wo 9312150 --tool-rad 0.501 --labfile C9312150 \
+python -m src.oiol2.main --wo 9496445 \
   --output-dir "D:/PointFiles" --config "configs/config.toml" --verbose
 ```
 Here is how I use it locally for testing
 ```powershell
-python -m src.oiol2.main --wo 9312150
+python -m src.oiol2.main --wo 9312150 --plot
 ```
 
 **Arguments**
@@ -136,7 +150,8 @@ python -m src.oiol2.main --wo 9312150
 * `--wo` *(str/int)* – Work order ID.
 * `--output-dir` *(str, optional)* – Overrides `paths.output_dir`.
 * `--config` *(str, optional)* – Path to a specific TOML; defaults to `configs/config.toml`.
-* `--verbose` – *(optional)* More logging.
+* `--verbose` *(optional)* More logging.
+* `--plot` *(optional)* Plot curves.
 
 **Exit codes**
 
@@ -151,151 +166,39 @@ python -m src.oiol2.main --wo 9312150
 
 ---
 
-## Simulating ALM (PowerShell)
-
-`scripts/simulate_alm.ps1` runs on ALM (or any Windows box) and **remotely** invokes OIOL2 on E via PowerShell Remoting. Adjust names/paths for your environment.
-
-```powershell
-param(
-  [Parameter(Mandatory)] [string]$TargetComputer,    # e.g. "EPC01"
-  [Parameter(Mandatory)] [string]$WorkOrder,         # e.g. "8280256"
-  [Parameter()] [string]$OutputDir = "D:/PointFiles",
-  [Parameter()] [string]$RepoRoot  = "D:/Projects/OIOL2",
-  [Parameter()] [string]$CondaEnv  = "pointfile"
-)
-
-$script = {
-  param($wo,$out,$root,$envName)
-  $ErrorActionPreference = 'Stop'
-  # Activate env and run the module
-  conda.exe run -n $envName python -m oiol2 --wo $wo `
-    --output-dir $out --config (Join-Path $root 'configs/config.toml')
-  exit $LASTEXITCODE
-}
-
-Invoke-Command -ComputerName $TargetComputer -ScriptBlock $script -ArgumentList `
-  $WorkOrder,$OutputDir,$RepoRoot,$CondaEnv -ErrorAction Stop
-
-$code = $LASTEXITCODE
-Write-Host "Remote job exit code: $code"
-
-if ($code -ne 0) {
-  throw "Point file generation failed with exit code $code"
-}
-
-# If needed, pull files from share or remote (robocopy/example)
-```
-
-> If WinRM isn’t available, you can swap to SSH: `ssh EPC01 "conda run -n pointfile python -m oiol2 ..."`.
-
----
-
-## Development notes
-
-* **Logging**: All steps are logged to console and optional log file. Use `--verbose` or set `logging.level = "DEBUG"`.
-* **Determinism**: Geometry functions are pure and unit-tested. Add fixtures in `tests/`.
-* **Performance**: For large point clouds, prefer NumPy arrays and vectorized math.
-* **Safety**: Always validate inputs (ranges, nulls). Abort on invalid lab data.
-* **Backwards-compat**: Keep a thin wrapper to accept legacy flags/paths used by ALM.
-
----
-
-## Minimal code scaffolding
-
-**`src/oiol2/main.py` (excerpt)**
-
-```python
-from __future__ import annotations
-import sys, argparse, logging, time
-from .config import load_config
-from .labfile_parser import parse_lab_file
-from .surface_generator import build_base_surface, build_front_surface
-from .dac_pointfile_writer import write_point_file
-
-EXIT = {
-    'OK': 0,
-    'INPUT': 10,
-    'MATH': 20,
-    'OUTPUT': 30,
-    'TIMEOUT': 40,
-    'UNKNOWN': 50,
-}
-
-def parse_args():
-    p = argparse.ArgumentParser()
-    p.add_argument('--wo', required=True)
-    p.add_argument('--tool-rad', type=float, required=True)
-    p.add_argument('--labfile', required=True)
-    p.add_argument('--output-dir')
-    p.add_argument('--config', default='configs/config.toml')
-    p.add_argument('--verbose', action='store_true')
-    return p.parse_args()
-
-def main() -> int:
-    try:
-        args = parse_args()
-        logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
-                            format='%(asctime)s %(levelname)7s %(message)s')
-        cfg = load_config(args.config, override_output=args.output_dir)
-        t0 = time.time()
-
-        lab_path = cfg.resolve_labfile(args.labfile)
-        lab_data = parse_lab_file(lab_path)
-
-        base = build_base_surface(lab_data, tool_radius=args.tool_rad)
-        front = build_front_surface(lab_data)
-
-        out_b = cfg.make_output_path('base', args.wo, args.tool_rad)
-        out_f = cfg.make_output_path('front', args.wo, args.tool_rad)
-        write_point_file(out_b, base)
-        write_point_file(out_f, front)
-
-        if time.time() - t0 > cfg.timeouts.job_timeout_s:
-            logging.error('Job exceeded timeout.')
-            return EXIT['TIMEOUT']
-
-        logging.info('Done. Wrote %s and %s', out_b, out_f)
-        return EXIT['OK']
-    except FileNotFoundError as e:
-        logging.exception('Input error: %s', e)
-        return EXIT['INPUT']
-    except ValueError as e:
-        logging.exception('Computation error: %s', e)
-        return EXIT['MATH']
-    except OSError as e:
-        logging.exception('Output error: %s', e)
-        return EXIT['OUTPUT']
-    except Exception:
-        logging.exception('Unknown failure')
-        return EXIT['UNKNOWN']
-
-if __name__ == '__main__':
-    sys.exit(main())
-```
-
----
-
-## Testing
-
-```powershell
-pytest -q
-```
-
-* `tests/test_smoke.py` should verify that dummy Lab Files run end-to-end and produce two non-empty files under a temp output dir.
-
----
-
 ## Roadmap
 
-* [ ] Port legacy `geometryfunctions02.py` into `oiol2/geometry.py` with unit tests
-* [ ] Implement robust Lab File parser with column-based extraction rules
-* [ ] Add CSV/JSON lookup utilities (e.g., CRT_SKUs)
-* [ ] Add cleanup task for old `kera*_*.txt/bin` per `cleanup.keep_hours`
-* [ ] Optional packaging via `pyproject.toml` with console entry-point `oiol2`
-* [ ] CI (GitHub Actions) for lint + tests on push
+- [x] Port legacy `geometryfunctions02.py` into `oiol2/geometry.py` with unit tests
+- [x] Implement robust Lab File parser with column-based extraction rules
+- [x] Add CSV/JSON lookup utilities (e.g., CRT_SKUs)
+- [x] Add cleanup task for old `kera*_*.txt/bin` per `cleanup.keep_hours`
+- [x] Optional packaging via `pyproject.toml` with console entry-point `oiol2`
+- [x] CI (GitHub Actions) for lint + tests on push
+- [x] Make sure you know how to execute the code in a stand-alone configuration.  In other words what do you need to type at the command line to make the code execute.
+```PowerShell
+(pointfile) PS D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II> python -m src.oiol2.main --wo 9312150 --plot
+python -m src.oiol2.main --wo 9496445 --plot
+```
+- [x] Add in the code to comment out the appropriate lines if it's rotationally symmetric
+- [x] Make sure the program produces files using the new Lab Files
+	- [x] Produce a test axial symetric Lab File using Configured Item 733.
+	c9496445
+	- [x] Produce a test non-axial symetric Lab File using Configured Item 733
+	C9496422
+	- [x] Make sure new `lab_file.toml` is working correctly with the code.
+	- [x] Test axial symetric and non-axial symetric cases to make sure they are printing the data to the file correctly.
+- [x] Change the `config.toml` so that "labfile_root = 'T:\''"
+- [x] Make sure the test Lab Files are in the "T:\" location.
+- [x] Put in a check to make sure adjacent point do not have the same x value when the x value is rounded to the nearest 10e-6.
+- [x] Create a test PowerShell script that will launch the program with a particular work order.  We'll use this as the base for the final PowerShell script that will be used by the ALM to launch the program.
+- [x] Alter the program to accept the argument of the work order.
+- [x] Update README.md
+- [ ] Update git repo.
+- [ ] Make sure the program is updated on 081LAB20.
+- [ ] Test the program using the command line on 081LAB20.
+- [ ] Edit the PowerShell script so that when it is executed on GILLIARDA in executes the program on 081LAB20.  It needs to get the exit code from the program that ran on 081LAB20 and print that same exit code to the terminal.
+- [ ] Edit the PowerShell script so that it copies the point files from 081LAB20 to "'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_dacfiles" when the program finishes.  Test this new file.
+- [ ] Edit RGPLogin so that it produces the correct Lathe Files for this.
+- [ ] Transfer the PowerShell script to Greg's PC and set-up a directory for the files to be moved to.  Make sure LSXPF is configured to point to the correct spots for the Greg'a Computer (config.toml).
+- [ ] Tranfer this to an ALM and test.
 
----
-
-## License
-
-TBD (private/internal). Add a license if/when needed.

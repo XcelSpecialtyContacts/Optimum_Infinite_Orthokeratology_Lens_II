@@ -44,7 +44,8 @@ from oiol2.geometry.meridional import (
     concat_point_lists,
     reverse_points,
     curve_length,
-    resample_curve_by_arclength
+    resample_curve_by_arclength,
+    find_duplicate_x_with_tolerance
 )
 
 from oiol2.geometry_core import (
@@ -1015,6 +1016,17 @@ def main(argv: list[str] | None = None) -> int:
                  bs_meridian_steep_points_rs[0], bs_meridian_steep_points_rs[-1], \
                  fs_meridian_flat_points_rs[0], fs_meridian_flat_points_rs[-1], \
                  fs_meridian_steep_points_rs[0], fs_meridian_steep_points_rs[-1])
+    
+    repreat_pts_bs_f = find_duplicate_x_with_tolerance(bs_meridian_flat_points_rs)
+    repreat_pts_bs_s = find_duplicate_x_with_tolerance(bs_meridian_steep_points_rs)
+    repreat_pts_fs_f = find_duplicate_x_with_tolerance(fs_meridian_flat_points_rs)
+    repreat_pts_fs_s = find_duplicate_x_with_tolerance(fs_meridian_steep_points_rs)
+    logger.info("\nX-values repeat on the base surface flat meridian: %s \
+                 \nX-values repeat on the base surface steep meridian: %s \
+                 \nX-values repeat on the front surface flat meridian: %s \
+                 \nX-values repeat on the front surface steep meridian: %s", \
+                 repreat_pts_bs_f, repreat_pts_bs_s, \
+                 repreat_pts_fs_f, repreat_pts_fs_s)
     ########################
 
     ########################
@@ -1163,39 +1175,39 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("\nIs this a toric periphery lens: %s", is_non_symmetric)
     ########################
 
+    write_base_surface_point_file(
+        args.wo,
+        header_data,
+        [
+            bs_meridian_flat_points_rs,
+            bs_meridian_steep_points_rs,
+            bs_meridian_flat_points_rs,   # repeated as per your original
+            bs_meridian_steep_points_rs
+        ]
+    )
+    write_front_surface_point_file(
+        args.wo,
+        header_data,
+        [
+            fs_meridian_flat_points_rs,
+            fs_meridian_steep_points_rs,
+            fs_meridian_flat_points_rs,   # repeated as per your original
+            fs_meridian_steep_points_rs
+        ]
+    )
+
     ########################
     # Optional plotting and point file export
     if args.plot:
         logger.info("Plotting flag enabled — generating meridional plots and point files")
-
-        write_base_surface_point_file(
-            args.wo,
-            header_data,
-            [
-                bs_meridian_flat_points_rs,
-                bs_meridian_steep_points_rs,
-                bs_meridian_flat_points_rs,   # repeated as per your original
-                bs_meridian_steep_points_rs
-            ]
-        )
-        write_front_surface_point_file(
-            args.wo,
-            header_data,
-            [
-                fs_meridian_flat_points_rs,
-                fs_meridian_steep_points_rs,
-                fs_meridian_flat_points_rs,   # repeated as per your original
-                fs_meridian_steep_points_rs
-            ]
-        )
 
         plot_meridional_curves(
             [
                 Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points_rs),
                 Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points_rs),
                 # Optionally add more curves if you want to compare steep meridians too:
-                # Curve(label="Base Surface Steep Meridian", points=bs_meridian_steep_points_rs, linestyle="--"),
-                # Curve(label="Front Surface Steep Meridian", points=fs_meridian_steep_points_rs, linestyle="--"),
+                Curve(label="Base Surface Steep Meridian", points=bs_meridian_steep_points_rs, linestyle="--"),
+                Curve(label="Front Surface Steep Meridian", points=fs_meridian_steep_points_rs, linestyle="--"),
             ],
             title="Optimum Infinite Orthokeratology Lens II",
             xlim=(0, 8),

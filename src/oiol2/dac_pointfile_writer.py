@@ -38,10 +38,15 @@ def write_base_surface_point_file(
             file.write(f"{str(header_data['bs_surface_1']['x_start']['value']):<20}\\ {str(header_data['bs_surface_1']['x_start']['comment'])}\n") # header line 12
             file.write(f"{str(header_data['bs_surface_1']['x_end']['value']):<20}\\ {str(header_data['bs_surface_1']['x_end']['comment'])}\n") # header line 13
             file.write(f"{str(header_data['bs_surface_1']['junction_blend_radius']['value']):<20}\\ {str(header_data['bs_surface_1']['junction_blend_radius']['comment'])}\n") # header line 14
-            file.write(f"{str(header_data['bs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['bs_surface_1']['angular_filtering']['comment'])}\n") # header line 15
-            file.write(f"{str(header_data['bs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['bs_surface_1']['no_of_meridians']['comment'])}\n") # header line 16
-            file.write(f"{str(header_data['bs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['bs_surface_1']['rotation_angle']['comment'])}\n") # header line 17
-            file.write(f"\\ --- radial definition ---\n") # header line 18
+            if header_data["non_symmetric_base"]["value"] == 0: # comment out the next three lines if the surfaces is axial symetric
+                file.write(f"\{str(header_data['bs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['bs_surface_1']['angular_filtering']['comment'])}\n") # header line 15
+                file.write(f"\{str(header_data['bs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['bs_surface_1']['no_of_meridians']['comment'])}\n") # header line 16
+                file.write(f"\{str(header_data['bs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['bs_surface_1']['rotation_angle']['comment'])}\n") # header line 17
+            else:
+                file.write(f"{str(header_data['bs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['bs_surface_1']['angular_filtering']['comment'])}\n") # header line 15
+                file.write(f"{str(header_data['bs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['bs_surface_1']['no_of_meridians']['comment'])}\n") # header line 16
+                file.write(f"{str(header_data['bs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['bs_surface_1']['rotation_angle']['comment'])}\n") # header line 17
+            #file.write(f"\\ --- radial definition ---\n") # header line 18
             for n in range(meridional_line_count):
                 meridian = meridians[n]
                 rev = meridian[::-1]   # last → first
@@ -96,9 +101,14 @@ def write_front_surface_point_file(
             file.write(f"{str(header_data['fs_surface_1']['x_start']['value']):<20}\\ {str(header_data['fs_surface_1']['x_start']['comment'])}\n") # header line 13
             file.write(f"{str(header_data['fs_surface_1']['x_end']['value']):<20}\\ {str(header_data['fs_surface_1']['x_end']['comment'])}\n") # header line 14
             file.write(f"{str(header_data['fs_surface_1']['junction_blend_radius']['value']):<20}\\ {str(header_data['fs_surface_1']['junction_blend_radius']['comment'])}\n") # header line 15
-            file.write(f"{str(header_data['fs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['fs_surface_1']['angular_filtering']['comment'])}\n") # header line 16
-            file.write(f"{str(header_data['fs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['fs_surface_1']['no_of_meridians']['comment'])}\n") # header line 17
-            file.write(f"{str(header_data['fs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['fs_surface_1']['rotation_angle']['comment'])}\n") # header line 18
+            if header_data["non_symmetric_front"]["value"] == 0: # comment out the next three lines if the surfaces is axial symetric
+                file.write(f"\{str(header_data['fs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['fs_surface_1']['angular_filtering']['comment'])}\n") # header line 16
+                file.write(f"\{str(header_data['fs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['fs_surface_1']['no_of_meridians']['comment'])}\n") # header line 17
+                file.write(f"\{str(header_data['fs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['fs_surface_1']['rotation_angle']['comment'])}\n") # header line 18
+            else:
+                file.write(f"{str(header_data['fs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['fs_surface_1']['angular_filtering']['comment'])}\n") # header line 16
+                file.write(f"{str(header_data['fs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['fs_surface_1']['no_of_meridians']['comment'])}\n") # header line 17
+                file.write(f"{str(header_data['fs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['fs_surface_1']['rotation_angle']['comment'])}\n") # header line 18
             file.write(f"\\ --- radial definition ---\n") # header line 19
             for n in range(meridional_line_count):
                 meridian = meridians[n]
