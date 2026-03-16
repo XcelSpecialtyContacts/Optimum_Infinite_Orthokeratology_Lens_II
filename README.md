@@ -101,7 +101,7 @@ A new LSID named **`lsXPF`** was developed with John Vanover.
 
 The source for `RGPLogin.exe` is written in Microsoft VB.
 
-This program was modified so that when a job is set up in production, it creates the appropriate **Lathe File** needed by the ALM workflow for this project.  Version 1.17 is required for this process.
+This program was modified so that when a job is set up in production, it creates the appropriate **Lathe File** needed by the ALM workflow for this project.  **Version 1.17** is **required** for this process.
 
 ---
 
@@ -179,15 +179,19 @@ Optimum_Infinite_Orthokeratology_Lens_II/
 ├── requirements.txt
 ├── requirements_win32.txt
 ├── requirements_32bit_runtime.txt
+├── requirements_from_conda.txt
+├── requirements_pkg.txt
+├── oiol2_pointfile.spec
+├── run_oiol2.py
 │
 ├── configs/
 ├── data/
 ├── docs/
-├── scripts/
+├── deployment/
+│   └── alm/
 ├── src/
 │   └── oiol2/
 ├── tests/
-├── examples/
 └── archive/
 ```
 
@@ -239,6 +243,7 @@ The ALM runtime environment uses:
 * locally installed `oiol2`
 * launcher batch script
 * Microsoft Visual C++ Redistributable for `numpy`
+* The repository also includes the tracked ALM deployment artifact `deployment/alm/lsXPF.zdd` as part of the documented machine integration.
 
 ---
 
@@ -262,6 +267,16 @@ This installed layout is documented for deployment purposes, but the installed c
 
 ---
 
+### Active launcher
+
+The active ALM launcher is:
+
+`call_oiol2_point_file_gen.bat`
+
+The older PowerShell launcher was retained only for historical reference in `archive/`.
+
+---
+
 ## Status
 
 ### Completed
@@ -279,8 +294,8 @@ This installed layout is documented for deployment purposes, but the installed c
 
 - [ ] complete invoice testing in JDE Test environment
 - [ ] move invoice changes to JDE Live environment after validation
-- [ ] Create a lsXPF version for ALM01 and ALM02.
-- [ ] Integrate laser emgraving of lens serial number onto the lens
+- [ ] Create na lsXPF version for ALM01 and ALM02.
+- [ ] Integrate laser engraving of lens serial number onto the lens
 - [ ] continue refining repository organization and deployment documentation
 - [ ] determine long-term packaging / update strategy for ALM runtime deployment
 - [ ] document revision/control strategy for LSID-related artifacts external to this repository
@@ -289,9 +304,10 @@ This installed layout is documented for deployment purposes, but the installed c
 
 ## Runtime Notes
 
-* There are some modules (i.e. `numpy`, `sympy`, etc.) on the 32-bit ALM system that requires the **Microsoft Visual C++ Redistributable**
-* plotting support was intentionally removed from the ALM runtime path
-* machine-specific config files should not be committed to version control unless sanitized for reuse
+* Some modules (i.e. `numpy`, `sympy`, etc.) on the 32-bit ALM system that require the **Microsoft Visual C++ Redistributable**
+* Plotting support was intentionally removed from the ALM runtime path
+* Machine-specific config files should not be committed to version control unless sanitized for reuse
+* Tracked configuration files in this repository should represent reusable templates, specifications, or development defaults. Machine-specific runtime paths for ALM deployment should be documented and managed carefully.
 
 ---
 
