@@ -1,204 +1,321 @@
-# Optimum Infinite Orthokeratology Lens II (OIOL2)
+# Optimum Infinite Orthokeratology Lens II
 
-A modular, Python-driven pipeline that generates **DAC ALM**-compatible point files (Base and Front surfaces) for orthokeratology contact lenses (Lunara). The code runs on a remote Windows 11 workstation ("E") and is invoked by a lathe-attached PC ("ALM"). The ALM machine supplies arguments (e.g., work order ID, etc.), OIOL2 generates point files, returns an **exit code** to the caller, and writes the files to a shared/retrieved location.
+## Overview
 
----
+This project supports the production workflow for the **Optimum Infinite Orthokeratology Lens II** design at X-Cel Specialty Contacts.
 
-## Architecture
+The overall system is intended to:
 
-**Roles**
+1. Accept customer / ECP order inputs directly in **JD Edwards Configurator**
+2. Generate the required production data in JDE, including the **Lab File** and **Invoice**
+3. Generate DAC International ALM **point files** from JDE production data
+4. Automatically invoke point-file generation during ALM job processing
+5. Use a custom ALM manufacturing program (**LSID**) to cut lens surfaces from the generated point files
+6. Support lathe-file generation through updates to **RGPLogin.exe**
 
-* **ALM**: Lathe-side PC. Calls remote process, later retrieves generated point files.
-* **E**: Remote Windows 11 workstation running a Conda env `pointfile` and the OIOL2 Python program.
-
-**High-level flow**
-
-1. ALM calls E with args (work order, etc.).
-2. E parses the Lab File and other inputs.
-3. E computes the Base/Front lens surfaces and writes **point files**.
-4. E saves the files to a common shared space.
-5. E returns an exit code to ALM.
-6. ALM retrieves the file(s) or reports an error.
-
-**Key modules**
-
-* `oiol2/config.py` – Config loading/validation (TOML), defaults.
-* `oiol2/labfile_parser.py` – Parse Lab Files and reference CSV/JSON tables.
-* `oiol2/geometry.py` – Optical math helpers (see `geometryfunctions02.py` for the original versions of these fuctions).
-* `oiol2/surface_generator.py` – Builds Base/Front surfaces from parameters.
-* `oiol2/dac_pointfile_writer.py` – Create ALM/DAC-compatible point files.
-* `oiol2/main.py` – CLI entry point orchestrating the pipeline.
+This repository is primarily the source and documentation hub for the **`oiol2` point-file generator** and its integration into the broader manufacturing workflow.
 
 ---
 
-## Repository layout
+## System Components
+
+The complete production solution includes four major components:
+
+1. **JD Edwards Configurator**
+2. **`oiol2` Point File Generator**
+3. **DAC ALM LSID (`lsXPF`)**
+4. **RGPLogin.exe modifications**
+
+Not all of these components are fully version-controlled in this repository. This repository focuses mainly on:
+
+- the Python source code for `oiol2`
+- launcher scripts used to invoke `oiol2`
+- supporting configuration and data files
+- tests
+- documentation describing system integration
+
+---
+
+## Current Implementation Summary
+
+### 1. JD Edwards Configurator
+
+- A new item was created for this project: **Item 733**
+- For Item 733, Customer Service enters the ECP's inputs directly into JDE Configurator
+- No intermediate calculator / translator is required before entering order data into Configurator
+- JDE produces a **Lab File** containing the data needed to generate lathe point files
+- The invoice has been mocked up in the JDE **Test** environment
+- Full testing of the invoice is still required before promotion to the **Live** environment
+
+### 2. `oiol2` Point File Generator
+
+`oiol2` is the Python program that reads production data and generates DAC ALM point files.
+
+#### Original concept
+The original plan was to host `oiol2` on a server and have the ALM call it remotely. In that design:
+
+- the ALM would pass arguments identifying the lens/job to cut
+- the server would generate the point files
+- the server would return an exit code to the ALM
+- the ALM would retrieve the generated point files and continue processing
+
+This approach was not implemented due to credential, access, and IT support complexities between systems.
+
+#### Implemented approach
+The implemented solution runs `oiol2` **locally on the ALM PC**.
+
+This avoids cross-system credential and server access issues. In the implemented design:
+
+- the ALM PC runs a local 32-bit Python runtime
+- `oiol2` is installed locally on the ALM PC
+- the ALM invokes `oiol2` through a batch launcher
+- `oiol2` generates the required point files locally
+- the exit code is returned back to the ALM workflow
+
+#### 32-bit runtime port
+The development version of `oiol2` was originally built using:
+
+- Python 3.11
+- 64-bit Windows
+- a Conda-based development environment
+
+Because the ALM-connected PCs run **Windows 10 LTS 32-bit**, `oiol2` was ported to run under a standalone **Python 3.11 32-bit** installation.
+
+Notes:
+
+- `matplotlib` was removed from the ALM runtime path because plotting was only needed for development
+- `numpy` required installation of the **Microsoft Visual C++ Redistributable**
+- the 32-bit version was validated on the ALM-connected PC
+
+### 3. DAC ALM LSID (`lsXPF`)
+
+A new LSID named **`lsXPF`** was developed with John Vanover.
+
+`lsXPF` is responsible for:
+
+- processing the point files generated for the lens surface
+- calling the `oiol2` launcher so point files can be generated when needed
+- continuing the ALM cutting process after point files are available
+
+### 4. RGPLogin.exe
+
+The source for `RGPLogin.exe` is written in Microsoft VB.
+
+This program was modified so that when a job is set up in production, it creates the appropriate **Lathe File** needed by the ALM workflow for this project.  Version 1.17 is required for this process.
+
+---
+
+## Process Flow
+
+```mermaid
+flowchart TD
+    A[JDE Produces Lab File] --> B[RGPLogin Creates Lathe File]
+    B --> C[ALM Reads Lathe File]
+    C --> D[ALM Executes lsXPF]
+    D --> E[lsXPF calls launcher script]
+    E --> F[Launcher script executes oiol2.main]
+    A --> G[oiol2 reads Lab File data]
+    F --> G
+    G --> H[oiol2 generates point files]
+    H --> I[oiol2 returns exit code to launcher]
+    I --> J[Launcher places point files in ALM-accessible location]
+    J --> K[Launcher returns exit code to lsXPF]
+    K --> L[lsXPF cuts surface using point file]
+```
+
+### Execution chain
+
+**S1**
+`D:\oiol2\call_oiol2_point_file_gen.bat --wo ###`
+
+**E1**
+`D:\Python32\python.exe -m oiol2.main --wo ###`
+
+**S2**
+`oiol2.main`
+
+**L1**
+`D:\oiol2\test_dacfiles\`
+
+---
+
+## Repository Purpose
+
+This repository should contain the **source of truth** for the `oiol2` software and its deployment documentation.
+
+It is intended to include:
+
+* Python source code
+* configuration templates
+* supporting data files
+* test code
+* launcher scripts
+* system documentation
+* integration notes for JD Edwards, `lsXPF`, and `RGPLogin.exe`
+
+It should **not** be used to store:
+
+* machine-specific installed copies
+* build artifacts
+* virtual environments
+* log files
+* Python cache folders
+* generated point files used only for testing or local runs
+
+---
+
+## Repository Layout
+
+Planned / preferred layout:
 
 ```text
-optimum_infinite_orthokeratology_lens_ii/
-├─ configs/                  # Project settings (paths, timeouts, naming)
-│  ├─ config_sample.toml
-│  └─ lab_file.toml
-├─ data/
-│  ├─ CRT_SKUs.csv
-│  ├─ lens_design.toml
-│  └─ lens_parameters.json
-├─ docs/
-│  ├─ design_mock_up_2510240940.dxf
-│  ├─ Lens_Design_Summary.md
-│  └─ PORTING.md
-├─ labfile/
-│  ├─ config.py
-│  └─ parser.py
-├─ logs/
-├─ scripts/
-│  ├─ crt_lookup.py
-│  └─ simulate_alm.ps1       # Test harness that simulates the ALM PC
-├─ src/
-│  └─ oiol2/
-│     ├─ geometry/
-│     │  └─ meridional.py
-│     ├─ vis/                # For plotting the meridional curves
-│     │  └─ plotting.py
-│     ├─ __init__.py
-│     ├─ dac_pointfile_writer.py
-│     ├─ geometry_core.py
-│     ├─ geometryfunction02.py
-│     ├─ helper.py
-│     ├─ init.py
-│     ├─ labfile_parser.py
-│     ├─ main.py
-│     ├─ surface_generator.py
-│     └─ transform2d.py
-├─ .gitignore
-├─ environment.yml
-├─ pyproject.toml            # for packaging/entry points (optional, not sure this is needed)
-├─ pytest.ini
-└─ README.md                 # this file
+Optimum_Infinite_Orthokeratology_Lens_II/
+│
+├── README.md
+├── .gitignore
+├── pyproject.toml
+├── pytest.ini
+├── environment.yml
+├── requirements.txt
+├── requirements_win32.txt
+├── requirements_32bit_runtime.txt
+│
+├── configs/
+├── data/
+├── docs/
+├── scripts/
+├── src/
+│   └── oiol2/
+├── tests/
+├── examples/
+└── archive/
 ```
 
-## Installation & environment
+### Key directories
 
-### 1) Create the Conda env
+* **`src/oiol2/`**
+  Main Python package for point-file generation
 
-```powershell
-conda env create -f environment.yml
-conda activate pointfile
-```
+* **`configs/`**
+  Configuration templates and sample TOML files
 
-**`environment.yml`** (example)
+* **`data/`**
+  Lens design data and lookup/reference files
 
-```yaml
-name: pointfile
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - python=3.11
-  - numpy
-  - pandas
-  - tomllib
-  - click  # CLI ergonomics
-  - pytest
-```
+* **`scripts/`**
+  Launcher and helper scripts used for ALM execution and testing
 
-## Configuration
+* **`tests/`**
+  Automated tests for parser and geometry logic
 
-All runtime settings live in `configs/config.toml`. Example:
+* **`docs/`**
+  Project documentation, architecture notes, deployment notes, and design references
 
-```toml
-[paths]
-# Where E writes the finished point files
-output_dir = "D:\\Projects\\XcelSpecialtyContacts\\Optimum_Infinite_Orthokeratology_Lens_II\\test_dacfiles"
-# Base folder where Lab Files live (can be a share)
-lab_root   = "T:\\"
-# Optional temp working dir
-work_dir   = "D:\\Projects\\XcelSpecialtyContacts\\Optimum_Infinite_Orthokeratology_Lens_II\\src\\oiol2"
+* **`examples/`**
+  Sample lab files, sample outputs, and example inputs/outputs as needed
 
-[naming]
-# How output files are named
-base_pattern  = "{wo}.V5B"
-front_pattern = "{wo}.V5F"
-
-[timeouts]
-# End-to-end generation cap (seconds)
-job_timeout_s = 300
-
-[logging]
-level = "INFO"  # DEBUG, INFO, WARNING, ERROR
-file  = "D:\\Projects\\XcelSpecialtyContacts\\Optimum_Infinite_Orthokeratology_Lens_II\\logs\\oiol2.log"
-
-[cleanup]
-# Delete files older than this many hours in output_dir
-keep_hours = 0  # 0 means to keep them indefinately
-```
----
-
-## Command-line usage (on E)
-
-```powershell
-# From repo root with env active
-python -m src.oiol2.main --wo 9496445 \
-  --output-dir "D:/PointFiles" --config "configs/config.toml" --verbose
-```
-Here is how I use it locally for testing
-```powershell
-python -m src.oiol2.main --wo 9312150 --plot
-```
-
-**Arguments**
-
-* `--wo` *(str/int)* – Work order ID.
-* `--output-dir` *(str, optional)* – Overrides `paths.output_dir`.
-* `--config` *(str, optional)* – Path to a specific TOML; defaults to `configs/config.toml`.
-* `--verbose` *(optional)* More logging.
-* `--plot` *(optional)* Plot curves.
-
-**Exit codes**
-
-* `0` – Success (both Base and Front point files written).
-* `1` – Success (Base point file written).
-* `2` – Success (Base point file written).
-* `10` – Input error (missing Lab File, bad args, config invalid).
-* `20` – Computation error (geometry/surface math failed).
-* `30` – Output error (cannot write files, permissions/space).
-* `40` – Timeout (job exceeded `timeouts.job_timeout_s`).
-* `50` – Unknown/unhandled exception.
+* **`archive/`**
+  Legacy or reference material retained for historical reasons but not part of the active runtime path
 
 ---
 
-## Roadmap
+## Development vs Deployment
 
-- [x] Port legacy `geometryfunctions02.py` into `oiol2/geometry.py` with unit tests
-- [x] Implement robust Lab File parser with column-based extraction rules
-- [x] Add CSV/JSON lookup utilities (e.g., CRT_SKUs)
-- [x] Add cleanup task for old `kera*_*.txt/bin` per `cleanup.keep_hours`
-- [x] Optional packaging via `pyproject.toml` with console entry-point `oiol2`
-- [x] CI (GitHub Actions) for lint + tests on push
-- [x] Make sure you know how to execute the code in a stand-alone configuration.  In other words what do you need to type at the command line to make the code execute.
-```PowerShell
-(pointfile) PS D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II> python -m src.oiol2.main --wo 9312150 --plot
-python -m src.oiol2.main --wo 9496445 --plot
+### Development environment
+
+Development was originally performed using:
+
+* Python 3.11
+* 64-bit Windows
+* Conda environment
+* optional plotting for geometry/debug work
+
+### Deployment environment
+
+The ALM runtime environment uses:
+
+* Windows 10 LTS 32-bit
+* standalone Python 3.11 32-bit
+* locally installed `oiol2`
+* launcher batch script
+* Microsoft Visual C++ Redistributable for `numpy`
+
+---
+
+## ALM Deployment Layout
+
+Example deployment layout on the ALM PC:
+
+```text
+D:\
+├── Python32\
+└── OIOL2\
+    ├── call_oiol2_point_file_gen.bat
+    ├── configs\
+    ├── data\
+    ├── logs\
+    ├── src\
+    └── test_dacfiles\
 ```
-- [x] Add in the code to comment out the appropriate lines if it's rotationally symmetric
-- [x] Make sure the program produces files using the new Lab Files
-	- [x] Produce a test axial symetric Lab File using Configured Item 733.
-	c9496445
-	- [x] Produce a test non-axial symetric Lab File using Configured Item 733
-	C9496422
-	- [x] Make sure new `lab_file.toml` is working correctly with the code.
-	- [x] Test axial symetric and non-axial symetric cases to make sure they are printing the data to the file correctly.
-- [x] Change the `config.toml` so that "labfile_root = 'T:\''"
-- [x] Make sure the test Lab Files are in the "T:\" location.
-- [x] Put in a check to make sure adjacent point do not have the same x value when the x value is rounded to the nearest 10e-6.
-- [x] Create a test PowerShell script that will launch the program with a particular work order.  We'll use this as the base for the final PowerShell script that will be used by the ALM to launch the program.
-- [x] Alter the program to accept the argument of the work order.
-- [x] Update README.md
-- [ ] Update git repo.
-- [ ] Make sure the program is updated on 081LAB20.
-- [ ] Test the program using the command line on 081LAB20.
-- [ ] Edit the PowerShell script so that when it is executed on GILLIARDA in executes the program on 081LAB20.  It needs to get the exit code from the program that ran on 081LAB20 and print that same exit code to the terminal.
-- [ ] Edit the PowerShell script so that it copies the point files from 081LAB20 to "'D:\Projects\XcelSpecialtyContacts\Optimum_Infinite_Orthokeratology_Lens_II\test_dacfiles" when the program finishes.  Test this new file.
-- [ ] Edit RGPLogin so that it produces the correct Lathe Files for this.
-- [ ] Transfer the PowerShell script to Greg's PC and set-up a directory for the files to be moved to.  Make sure LSXPF is configured to point to the correct spots for the Greg'a Computer (config.toml).
-- [ ] Tranfer this to an ALM and test.
 
+This installed layout is documented for deployment purposes, but the installed copy itself should not be committed as a duplicate code tree in Git.
+
+---
+
+## Status
+
+### Completed
+
+- [x] Item 733 created in JD Edwards Configurator
+- [x] Direct ECP input workflow established in Configurator
+- [x] Lab File generation working in JDE
+- [x] `oiol2` developed and working in development environment
+- [x] `oiol2` ported to Python 3.11 32-bit runtime
+- [x] local ALM execution model implemented
+- [x] `lsXPF` LSID created to process point files and invoke `oiol2`
+- [x] `RGPLogin.exe` modified to generate the required Lathe File
+
+### Open items
+
+- [ ] complete invoice testing in JDE Test environment
+- [ ] move invoice changes to JDE Live environment after validation
+- [ ] Create a lsXPF version for ALM01 and ALM02.
+- [ ] Integrate laser emgraving of lens serial number onto the lens
+- [ ] continue refining repository organization and deployment documentation
+- [ ] determine long-term packaging / update strategy for ALM runtime deployment
+- [ ] document revision/control strategy for LSID-related artifacts external to this repository
+
+---
+
+## Runtime Notes
+
+* There are some modules (i.e. `numpy`, `sympy`, etc.) on the 32-bit ALM system that requires the **Microsoft Visual C++ Redistributable**
+* plotting support was intentionally removed from the ALM runtime path
+* machine-specific config files should not be committed to version control unless sanitized for reuse
+
+---
+
+## Future Documentation
+
+The following documentation should be maintained under `docs/` as this repository is cleaned up:
+
+* `architecture.md`
+* `jde_configurator_status.md`
+* `deployment_alm_win32.md`
+* `lsxpf_integration.md`
+* `rgplogin_changes.md`
+* `porting_to_win32.md`
+
+---
+
+## Notes
+
+This repository documents a manufacturing integration effort that spans ERP configuration, production setup, ALM machine integration, and Python-based point-file generation. The Python code in this repository is only one part of the overall solution, but it is the primary software component maintained here.
+
+As the repository is cleaned up, the goal is to make it clear:
+
+* what is source code
+* what is documentation
+* what is deployment support
+* what is runtime-generated output
+* what belongs in Git and what does not

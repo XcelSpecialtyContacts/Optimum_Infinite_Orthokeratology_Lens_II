@@ -1,49 +1,75 @@
+# =========================
 # Python
+# =========================
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.so
-*.egg-info/
-.build/
-dist/
-build/
-.eggs/
 
-# Environments
+# Packaging
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# =========================
+# Virtual environments
+# =========================
 .env
 .venv
+.venv32
 venv/
 env/
 conda-meta/
 .conda/
 
-# OS/Editors
+# =========================
+# Test / lint / coverage
+# =========================
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# Generated runtime output
+# =========================
+test_dacfiles/
+test_xcelftp/
+
+# =========================
+# Machine specific configs
+# =========================
+configs/config.toml
+configs/lab_file.toml
+
+# =========================
+# OS / Editors
+# =========================
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# Logs & artifacts
-*.log
-*.bin
-*.txt
-.coverage
-
-# Configs
-config.toml
-lab_file_old.toml
-lab_file.sample.toml
-
-# docs
+# =========================
+# CAD temp files
+# =========================
 *.dxf~
 *#*.dxf
 
-# development
+# =========================
+# Development scratch space
+# =========================
 sandbox/
-test_dacfiles/
-test_xcelftp/
-tests/
 
-# Data you don’t want in repo (if any)
-# data/secret_*.*
+# =========================
+# Optional private data
+# =========================
+# data/secret_*
