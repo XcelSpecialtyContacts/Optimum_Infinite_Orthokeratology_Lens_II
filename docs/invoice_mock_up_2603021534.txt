@@ -1,0 +1,13 @@
+       OD                   |     Description
+S650 (Value)                |  S650 (Segment Description)
+S020 (Value Description)    |  S020 (Segment Description)
+S011 (Value Description)    |  S011 (Segment Description)
+S080 (Value)                |  "Power"
+S110 (Value)                |  "Diameter"
+S120 (Value)                |  "Thickness"
+S164 (Value)                |  "BC"
+S165 (Value), S166 (Value)  |  "RZD"
+S167 (Value), S168 (Value)  |  "LZA"
+S166 (Value)                |  "EZD"
+S164 (Value)                |  "Treatment Zone Dia."
+TBD                         |  "Laser Mark"
