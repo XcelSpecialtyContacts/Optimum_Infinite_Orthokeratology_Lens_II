@@ -13,8 +13,7 @@ def write_base_surface_point_file(
     """
     Creates a the base surface DAC ALM point file.
     """
-    #filename = wo + ".V5B"
-    filename = "bs.V5B"
+    filename = wo + ".V5B"
     filepath = Path.cwd() / "test_dacfiles" / filename
     try:
         # How many meridional lines of points will need to be processed
@@ -76,8 +75,7 @@ def write_front_surface_point_file(
     """
     Creates a the base surface DAC ALM point file.
     """
-    #filename = wo + ".V5F"
-    filename = "fs.V5F"
+    filename = wo + ".V5F"
     filepath = Path.cwd() / "test_dacfiles" / filename
     try:
         # How many meridional lines of points will need to be processed

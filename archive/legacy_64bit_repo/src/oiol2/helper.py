@@ -16,8 +16,6 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from typing import Any
-
 # For parsing TOML files
 try:
     import tomllib  # Python 3.11+
@@ -61,28 +59,8 @@ def default_design_path() -> Path:
     return repo_root_from_this_file() / "data" / "lens_design.toml"
 
 def load_toml_file(path: Path) -> dict[str, Any]:
-    #with path.open("rb") as f:
-    #    return tomllib.load(f)
-    data = path.read_bytes()
-
-    # Strip UTF-8 BOM if present
-    if data.startswith(b"\xef\xbb\xbf"):
-        data = data[3:]
-
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as e:
-        raise ValueError(
-            f"Config file '{path}' is not valid UTF-8. "
-            "Save it as UTF-8 without BOM."
-        ) from e
-
-    try:
-        return tomllib.loads(text)
-    except tomllib.TOMLDecodeError as e:
-        raise ValueError(
-            f"Invalid TOML in config file '{path}': {e}"
-        ) from e
+    with path.open("rb") as f:
+        return tomllib.load(f)
 
 def load_toml(config_path: Path) -> dict[str, Any]:
     with config_path.open("rb") as f:

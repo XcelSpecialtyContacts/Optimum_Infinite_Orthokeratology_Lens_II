@@ -48,6 +48,7 @@ test_xcelftp/
 # Machine specific configs
 # =========================
 configs/config.toml
+configs/lab_file.toml
 
 # =========================
 # OS / Editors

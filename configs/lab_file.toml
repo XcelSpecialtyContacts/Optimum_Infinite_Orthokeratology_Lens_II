@@ -1,0 +1,77 @@
+# Where the value column begins in the Lab File (optional, your parser takes this as a function arg)
+# value_col_start = 36
+
+# ---------- Lab file fields ----------
+[lab_fields.BC_actual]
+seg = 'L99'
+title = 'Base Curve produced'
+
+[lab_fields.Power]
+seg = '080'
+title = 'Power'
+
+[lab_fields.Dia]
+seg = '110'
+title = 'Diameter'
+
+[lab_fields.CT]
+seg = '120'
+title = 'Center Thickness'
+
+[lab_fields.BC]
+seg = '164'
+title = 'Base Curve Specified'
+
+[lab_fields.RZDFlat]
+seg = '165'
+title = 'Return Zone Depth Flat Axis'
+
+[lab_fields.RZDSteep]
+seg = '166'
+title = 'Return Zone Depth Steep Axis'
+
+[lab_fields.LZAFlat]
+seg = '167'
+title = 'Landing Zone Angle Flat Axis'
+
+[lab_fields.LZASteep]
+seg = '168'
+title = 'Landing Zone Angle Steep Axis'
+
+[lab_fields.PECDFlat]
+seg = '169'
+title = 'Peripheral Edge Curve Depth Flat Axis'
+
+[lab_fields.PECDSteep]
+seg = '169'
+title = 'Peripheral Edge Curve Depth Steep Axis'
+
+[lab_fields.BCOZDia]
+seg = '173'
+title = 'Base Curve OZ Diameter'
+
+[lab_fields.Vertex]
+seg = '230'
+title = 'Vertex Back or Front'
+
+[lab_fields.ET]
+seg = '325'
+title = 'Edge Thickness'
+
+[lab_fields.RI]
+seg = '617'
+title = 'Material Refractive Index'
+
+[lab_fields.ALMMatCode]
+seg = '633'
+title = 'ALM Material Code'
+
+
+
+
+
+
+
+
+
+

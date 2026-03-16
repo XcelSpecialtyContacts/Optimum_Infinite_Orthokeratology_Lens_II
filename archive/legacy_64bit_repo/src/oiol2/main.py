@@ -26,7 +26,7 @@ except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore[no-redef]
 
 # Load modules specific to this project
-#from oiol2.vis.plotting import plot_meridional_curves, Curve # does not work for the 32-bit version
+from oiol2.vis.plotting import plot_meridional_curves, Curve
 from oiol2.dac_pointfile_writer import write_base_surface_point_file, write_front_surface_point_file
 from oiol2.geometry.meridional import (
     generate_optic_zone_meridional,
@@ -398,11 +398,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=36,
         help="Starting column index for value field in fixed-width Lab File (default 36)",
     )
-    #p.add_argument(
-    #    "--plot",
-    #    action="store_true",
-    #    help="If set, generate and show meridional plots and write visualization point files"
-    #)
+    p.add_argument(
+        "--plot",
+        action="store_true",
+        help="If set, generate and show meridional plots and write visualization point files"
+    )
     return p.parse_args(argv)
 
 
@@ -416,16 +416,15 @@ def main(argv: list[str] | None = None) -> int:
     config_path = args.config
     if not config_path.exists():
         logger.error("Config file not found: %s", config_path)
-        return 1
+        return 2
 
     try:
-        #raw = load_toml(config_path)
-        raw = load_toml_file(config_path)
+        raw = load_toml(config_path)
         cfg = validate_and_build(raw)
         ensure_dirs(cfg)
     except Exception as e:
         logger.exception("Failed to load/validate config: %s", e)
-        return 2
+        return 1
 
     summary = summarize_config(cfg)
     logger.info("\n%s", summary)
@@ -434,13 +433,13 @@ def main(argv: list[str] | None = None) -> int:
     design_path = args.design if hasattr(args, "design") else default_design_path()
     if not design_path.exists():
         logger.error("Lens design file not found: %s", design_path)
-        return 3
+        return 2
 
     try:
         lens_design = load_lens_design(design_path)
     except Exception as e:
         logger.exception("Failed to load lens design: %s", e)
-        return 4
+        return 1
 
     logger.info("\n%s", summarize_lens_design(lens_design))   
 
@@ -451,7 +450,7 @@ def main(argv: list[str] | None = None) -> int:
         from labfile import load_lab_fields, parse_lab_file  # type: ignore
     except Exception as e:
         logger.exception("Cannot import 'labfile' module: %s", e)
-        return 5
+        return 1
 
     # Resolve paths
     lab_dir: Path = cfg.paths.labfile_root
@@ -460,13 +459,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if not lab_path.exists():
         logger.error("Lab File not found: %s", lab_path)
-        logger.error("ALM passed %s for the WO value.", args.wo)
-        return 6
+        return 2
 
     lab_spec_path: Path = args.lab_spec
     if not lab_spec_path.exists():
         logger.error("Lab field mapping spec not found: %s", lab_spec_path)
-        return 7
+        return 2
 
     try:
         fields_spec = load_lab_fields(str(lab_spec_path))
@@ -477,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     except Exception as e:
         logger.exception("Failed to parse Lab File: %s", e)
-        return 8
+        return 1
 
     logger.info("\n%s", summarize_lab_result(lab_data))
 
@@ -1200,27 +1198,27 @@ def main(argv: list[str] | None = None) -> int:
 
     ########################
     # Optional plotting and point file export
-    #if args.plot:
-    #    logger.info("Plotting flag enabled — generating meridional plots and point files")
+    if args.plot:
+        logger.info("Plotting flag enabled — generating meridional plots and point files")
 
-    #    plot_meridional_curves(
-    #        [
-    #            Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points_rs),
-    #            Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points_rs),
-    #            # Optionally add more curves if you want to compare steep meridians too:
-    #            Curve(label="Base Surface Steep Meridian", points=bs_meridian_steep_points_rs, linestyle="--"),
-    #            Curve(label="Front Surface Steep Meridian", points=fs_meridian_steep_points_rs, linestyle="--"),
-    #        ],
-    #        title="Optimum Infinite Orthokeratology Lens II",
-    #        xlim=(0, 8),
-    #        # You can also make these configurable later if needed:
-    #        # equal_aspect=True,
-    #        # grid=True,
-    #        # figsize=(8, 6),
-    #    )
-    #    logger.info("Plotting and point file export completed")
-    #else:
-    #    logger.info("Plotting skipped (run with --plot to enable)")
+        plot_meridional_curves(
+            [
+                Curve(label="Base Surface Flat Meridian", points=bs_meridian_flat_points_rs),
+                Curve(label="Front Surface Flat Meridian", points=fs_meridian_flat_points_rs),
+                # Optionally add more curves if you want to compare steep meridians too:
+                Curve(label="Base Surface Steep Meridian", points=bs_meridian_steep_points_rs, linestyle="--"),
+                Curve(label="Front Surface Steep Meridian", points=fs_meridian_steep_points_rs, linestyle="--"),
+            ],
+            title="Optimum Infinite Orthokeratology Lens II",
+            xlim=(0, 8),
+            # You can also make these configurable later if needed:
+            # equal_aspect=True,
+            # grid=True,
+            # figsize=(8, 6),
+        )
+        logger.info("Plotting and point file export completed")
+    else:
+        logger.info("Plotting skipped (run with --plot to enable)")
     ########################
 
     return 0
