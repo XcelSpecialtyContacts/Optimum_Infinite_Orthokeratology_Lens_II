@@ -118,3 +118,9 @@ min = -2.00
 max = 2.00
 step = 0.25
 
+[laser_writing]
+number_of_strings = 1
+direction_deg = 270.0
+character_height_mm = 0.400
+character_spacing_factor = 1
+edge_offset_mm = 0.4

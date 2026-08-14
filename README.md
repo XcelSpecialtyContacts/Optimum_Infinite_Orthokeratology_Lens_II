@@ -52,6 +52,7 @@ Not all of these components are fully version-controlled in this repository. Thi
 `oiol2` is the Python program that reads production data and generates DAC ALM point files.
 
 #### Original concept
+
 The original plan was to host `oiol2` on a server and have the ALM call it remotely. In that design:
 
 - the ALM would pass arguments identifying the lens/job to cut
@@ -62,6 +63,7 @@ The original plan was to host `oiol2` on a server and have the ALM call it remot
 This approach was not implemented due to credential, access, and IT support complexities between systems.
 
 #### Implemented approach
+
 The implemented solution runs `oiol2` **locally on the ALM PC**.
 
 This avoids cross-system credential and server access issues. In the implemented design:
@@ -73,6 +75,7 @@ This avoids cross-system credential and server access issues. In the implemented
 - the exit code is returned back to the ALM workflow
 
 #### 32-bit runtime port
+
 The development version of `oiol2` was originally built using:
 
 - Python 3.11
@@ -86,6 +89,25 @@ Notes:
 - `matplotlib` was removed from the ALM runtime path because plotting was only needed for development
 - `numpy` required installation of the **Microsoft Visual C++ Redistributable**
 - the 32-bit version was validated on the ALM-connected PC
+
+#### Front-surface laser engraving
+
+`oiol2` now includes the WO number as laser-writing data in the front-surface DAC point file.
+
+The generated front point file uses the **`FRL`** format (front side, radial format, laser writing). The laser-writing block is written after the diagnostic-mark count and before the first surface definition.
+
+For the current production configuration:
+
+- the laser text is the WO number passed with `--wo`
+- the engraving radius is calculated as `lens diameter / 2 - edge_offset_mm`
+- the default engraving direction is **270.0 degrees**
+- the default character height is **0.400 mm**
+- the default character spacing factor is **1.0**
+- the default edge offset is **0.400 mm**
+
+The fixed laser-writing parameters are maintained in the `[laser_writing]` section of `lens_design.toml`, while the WO number and lens diameter are determined for each production job.
+
+This implementation was tested successfully in the production ALM workflow.
 
 ### 3. DAC ALM LSID (`lsXPF`)
 
@@ -101,7 +123,7 @@ A new LSID named **`lsXPF`** was developed with John Vanover.
 
 The source for `RGPLogin.exe` is written in Microsoft VB.
 
-This program was modified so that when a job is set up in production, it creates the appropriate **Lathe File** needed by the ALM workflow for this project.  **Version 1.17** is **required** for this process.
+This program was modified so that when a job is set up in production, it creates the appropriate **Lathe File** needed by the ALM workflow for this project.  Version 1.17 is required for this process.
 
 ---
 
@@ -179,19 +201,15 @@ Optimum_Infinite_Orthokeratology_Lens_II/
 ├── requirements.txt
 ├── requirements_win32.txt
 ├── requirements_32bit_runtime.txt
-├── requirements_from_conda.txt
-├── requirements_pkg.txt
-├── oiol2_pointfile.spec
-├── run_oiol2.py
 │
 ├── configs/
 ├── data/
 ├── docs/
-├── deployment/
-│   └── alm/
+├── scripts/
 ├── src/
 │   └── oiol2/
 ├── tests/
+├── examples/
 └── archive/
 ```
 
@@ -199,25 +217,18 @@ Optimum_Infinite_Orthokeratology_Lens_II/
 
 * **`src/oiol2/`**
   Main Python package for point-file generation
-
 * **`configs/`**
   Configuration templates and sample TOML files
-
 * **`data/`**
   Lens design data and lookup/reference files
-
 * **`scripts/`**
   Launcher and helper scripts used for ALM execution and testing
-
 * **`tests/`**
   Automated tests for parser and geometry logic
-
 * **`docs/`**
   Project documentation, architecture notes, deployment notes, and design references
-
 * **`examples/`**
   Sample lab files, sample outputs, and example inputs/outputs as needed
-
 * **`archive/`**
   Legacy or reference material retained for historical reasons but not part of the active runtime path
 
@@ -243,7 +254,6 @@ The ALM runtime environment uses:
 * locally installed `oiol2`
 * launcher batch script
 * Microsoft Visual C++ Redistributable for `numpy`
-* The repository also includes the tracked ALM deployment artifact `deployment/alm/lsXPF.zdd` as part of the documented machine integration.
 
 ---
 
@@ -267,60 +277,35 @@ This installed layout is documented for deployment purposes, but the installed c
 
 ---
 
-### Active launcher
-
-The active ALM launcher is:
-
-`call_oiol2_point_file_gen.bat`
-
-The older PowerShell launcher was retained only for historical reference in `archive/`.
-
----
-
 ## Status
 
 ### Completed
 
-- [x] Item 733 created in JD Edwards Configurator
-- [x] Direct ECP input workflow established in Configurator
-- [x] Lab File generation working in JDE
-- [x] `oiol2` developed and working in development environment
-- [x] `oiol2` ported to Python 3.11 32-bit runtime
-- [x] local ALM execution model implemented
-- [x] `lsXPF` LSID created to process point files and invoke `oiol2`
-- [x] `RGPLogin.exe` modified to generate the required Lathe File
+- [X] Item 733 created in JD Edwards Configurator
+- [X] Direct ECP input workflow established in Configurator
+- [X] Lab File generation working in JDE
+- [X] `oiol2` developed and working in development environment
+- [X] `oiol2` ported to Python 3.11 32-bit runtime
+- [X] local ALM execution model implemented
+- [X] `lsXPF` LSID created to process point files and invoke `oiol2`
+- [X] `RGPLogin.exe` modified to generate the required Lathe File
+- [X] WO laser engraving integrated into the front-surface `FRL` point file
+- [X] laser-writing implementation validated in production
+- [X] complete invoice testing in JDE Test environment
+- [X] move invoice changes to JDE Live environment after validation
+- [X] Install `lsXPF` and `oiol2` on ALM03, ALM06, ALM07, and ALM08
 
 ### Open items
 
-- [ ] complete invoice testing in JDE Test environment
-- [ ] move invoice changes to JDE Live environment after validation
-- [ ] Create na lsXPF version for ALM01 and ALM02.
-- [ ] Integrate laser engraving of lens serial number onto the lens
-- [ ] continue refining repository organization and deployment documentation
-- [ ] determine long-term packaging / update strategy for ALM runtime deployment
-- [ ] document revision/control strategy for LSID-related artifacts external to this repository
+- [ ] create an `lsXPF` version for ALM01 and ALM02
 
 ---
 
 ## Runtime Notes
 
-* Some modules (i.e. `numpy`, `sympy`, etc.) on the 32-bit ALM system that require the **Microsoft Visual C++ Redistributable**
-* Plotting support was intentionally removed from the ALM runtime path
-* Machine-specific config files should not be committed to version control unless sanitized for reuse
-* Tracked configuration files in this repository should represent reusable templates, specifications, or development defaults. Machine-specific runtime paths for ALM deployment should be documented and managed carefully.
-
----
-
-## Future Documentation
-
-The following documentation should be maintained under `docs/` as this repository is cleaned up:
-
-* `architecture.md`
-* `jde_configurator_status.md`
-* `deployment_alm_win32.md`
-* `lsxpf_integration.md`
-* `rgplogin_changes.md`
-* `porting_to_win32.md`
+* Some Python modules (e.g., `numpy`, `sympy`) on the 32-bit ALM system require the **Microsoft Visual C++ Redistributable**
+* plotting support was intentionally removed from the ALM runtime path
+* machine-specific config files should not be committed to version control unless sanitized for reuse
 
 ---
 
@@ -328,10 +313,10 @@ The following documentation should be maintained under `docs/` as this repositor
 
 This repository documents a manufacturing integration effort that spans ERP configuration, production setup, ALM machine integration, and Python-based point-file generation. The Python code in this repository is only one part of the overall solution, but it is the primary software component maintained here.
 
-As the repository is cleaned up, the goal is to make it clear:
+---
 
-* what is source code
-* what is documentation
-* what is deployment support
-* what is runtime-generated output
-* what belongs in Git and what does not
+## Maintainer
+
+### [X-Cel Specialty Contacts](https://www.xcelspecialtycontacts.com/)
+
+[Allen Gilliard](agilliar@xcelspecialtycontacts.com)

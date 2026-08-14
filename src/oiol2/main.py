@@ -119,6 +119,8 @@ class LensDesign:
     meta: Mapping[str, Any]
     # map of "section.param" -> ParamSpec (e.g., "landing_zone.angle")
     params: Mapping[str, ParamSpec]
+    # DAC laser-writing configuration
+    laser_writing: Mapping[str, Any]
 
 # -----------------------
 # Helpers not in helpers.py
@@ -228,9 +230,13 @@ def load_lens_design(design_path: Path) -> LensDesign:
     if not isinstance(meta, dict):
         raise ValueError("[meta] must be a table")
 
+    laser_writing = raw.get("laser_writing", {})
+    if not isinstance(laser_writing, dict):
+        raise ValueError("[laser_writing] must be a table")
+
     params: dict[str, ParamSpec] = {}
     for top_key, top_val in raw.items():
-        if top_key == "meta":
+        if top_key in ("meta", "laser_writing"):
             continue
         if not isinstance(top_val, dict):
             # each non-meta key should be a table (e.g., [landing_zone], [optics])
@@ -242,7 +248,11 @@ def load_lens_design(design_path: Path) -> LensDesign:
             path_key = f"{top_key}.{sub_key}"
             params[path_key] = _parse_param_block(path_key, sub_val)
 
-    return LensDesign(meta=meta, params=params)
+    return LensDesign(
+        meta=meta,
+        params=params,
+        laser_writing=laser_writing,
+    )
 
 def cleanup_old_logs(max_age_hours: float = 24.0) -> None:
     #
@@ -480,6 +490,25 @@ def main(argv: list[str] | None = None) -> int:
         return 8
 
     logger.info("\n%s", summarize_lab_result(lab_data))
+
+    ########################
+    # Calculate the WO laser engraving
+    laser_config = lens_design.laser_writing
+
+    laser_writing = {
+        "number_of_strings": int(laser_config["number_of_strings"]),
+        "text": str(args.wo),
+        "radius_mm": (
+            _to_float(lab_data["Dia"]) / 2
+            - float(laser_config["edge_offset_mm"])
+        ),
+        "direction_deg": float(laser_config["direction_deg"]),
+        "character_height_mm": float(laser_config["character_height_mm"]),
+        "character_spacing_factor": float(
+            laser_config["character_spacing_factor"]
+        ),
+    }
+    ########################
 
     ########################
     # Calculate the Base Curve optic zone radius bcoz_points
@@ -1093,6 +1122,32 @@ def main(argv: list[str] | None = None) -> int:
         "no_of_diag_marks": {
             "value": 0,
             "comment": "number of diagnostic marks"
+        },
+        "laser_writing": {
+            "number_of_strings": {
+                "value": laser_writing["number_of_strings"],
+                "comment": "number of laser-writing strings"
+            },
+            "text": {
+                "value": laser_writing["text"],
+                "comment": "laser text"
+            },
+            "radius_mm": {
+                "value": laser_writing["radius_mm"],
+                "comment": "distance from spindle center, mm"
+            },
+            "direction_deg": {
+                "value": laser_writing["direction_deg"],
+                "comment": "direction to CENTER of string, degrees"
+            },
+            "character_height_mm": {
+                "value": laser_writing["character_height_mm"],
+                "comment": "character height, mm"
+            },
+            "character_spacing_factor": {
+                "value": laser_writing["character_spacing_factor"],
+                "comment": "character spacing factor"
+            }
         },
         "bs_surface_1": {
             "non_symmetric": {

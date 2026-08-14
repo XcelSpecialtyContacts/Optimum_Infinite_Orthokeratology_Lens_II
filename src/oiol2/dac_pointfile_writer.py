@@ -79,6 +79,10 @@ def write_front_surface_point_file(
     #filename = wo + ".V5F"
     filename = "fs.V5F"
     filepath = Path.cwd() / "test_dacfiles" / filename
+
+    # Laser engraving data
+    laser = header_data['laser_writing']
+
     try:
         # How many meridional lines of points will need to be processed
         if header_data['non_symmetric_base']['value'] == 0:
@@ -88,7 +92,7 @@ def write_front_surface_point_file(
         
         # Open point file in write mode ('w' creates the file if it doesn't exist)
         with open(filepath, 'w', encoding='utf-8') as file:
-            file.write(f"{'FR':<20}\\ front side\n") # header line 1
+            file.write(f"{'FRL':<20}\\ front side\n") # header line 1
             file.write(f"{str(header_data['non_symmetric_front']['value']):<20}\\ {str(header_data['non_symmetric_front']['comment'])}\n") # header line 2
             file.write(f"{str(header_data['no_of_front_surfaces']['value']):<20}\\ {str(header_data['no_of_front_surfaces']['comment'])}\n") # header line 3
             file.write(f"{str(header_data['FC_horizontal']['value']):<20}\\ {str(header_data['FC_horizontal']['comment'])}\n") # header line 4
@@ -98,19 +102,25 @@ def write_front_surface_point_file(
             file.write(f"{str(header_data['no_of_parts_to_cut']['value']):<20}\\ {str(header_data['no_of_parts_to_cut']['comment'])}\n") # header line 8
             file.write(f"{str(header_data['ct']['value']):<20}\\ {str(header_data['ct']['comment'])}\n") # header line 9
             file.write(f"{str(header_data['no_of_diag_marks']['value']):<20}\\ {str(header_data['no_of_diag_marks']['comment'])}\n") # header line 10
-            file.write(f"\\ -- SURFACE DEFINITION #1 --\n") # header line 11
-            file.write(f"{str(header_data['fs_surface_1']['non_symmetric']['value']):<20}\\ {str(header_data['fs_surface_1']['non_symmetric']['comment'])}\n") # header line 12
-            file.write(f"{str(header_data['fs_surface_1']['x_start']['value']):<20}\\ {str(header_data['fs_surface_1']['x_start']['comment'])}\n") # header line 13
-            file.write(f"{str(header_data['fs_surface_1']['x_end']['value']):<20}\\ {str(header_data['fs_surface_1']['x_end']['comment'])}\n") # header line 14
-            file.write(f"{str(header_data['fs_surface_1']['junction_blend_radius']['value']):<20}\\ {str(header_data['fs_surface_1']['junction_blend_radius']['comment'])}\n") # header line 15
+            file.write(f"{str(laser['number_of_strings']['value']):<20}\\ {str(laser['number_of_strings']['comment'])}\n") # header line 11
+            file.write(f"{str(laser['text']['value']):<20}\\ {str(laser['text']['comment'])}\n") # header line 12
+            file.write(f"{laser['radius_mm']['value']:<20.3f}\\ {laser['radius_mm']['comment']}\n") # header line 13
+            file.write(f"{laser['direction_deg']['value']:<20.1f}\\ {laser['direction_deg']['comment']}\n") # header line 14
+            file.write(f"{laser['character_height_mm']['value']:<20.3f}\\ {laser['character_height_mm']['comment']}\n") # header line 15
+            file.write(f"{str(laser['character_spacing_factor']['value']):<20}\\ {str(laser['character_spacing_factor']['comment'])}\n") # header line 16
+            file.write(f"\\ -- SURFACE DEFINITION #1 --\n") # header line 17
+            file.write(f"{str(header_data['fs_surface_1']['non_symmetric']['value']):<20}\\ {str(header_data['fs_surface_1']['non_symmetric']['comment'])}\n") # header line 18
+            file.write(f"{str(header_data['fs_surface_1']['x_start']['value']):<20}\\ {str(header_data['fs_surface_1']['x_start']['comment'])}\n") # header line 19
+            file.write(f"{str(header_data['fs_surface_1']['x_end']['value']):<20}\\ {str(header_data['fs_surface_1']['x_end']['comment'])}\n") # header line 20
+            file.write(f"{str(header_data['fs_surface_1']['junction_blend_radius']['value']):<20}\\ {str(header_data['fs_surface_1']['junction_blend_radius']['comment'])}\n") # header line 21
             if header_data["non_symmetric_front"]["value"] == 0: # comment out the next three lines if the surfaces is axial symetric
-                file.write(f"\{str(header_data['fs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['fs_surface_1']['angular_filtering']['comment'])}\n") # header line 16
-                file.write(f"\{str(header_data['fs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['fs_surface_1']['no_of_meridians']['comment'])}\n") # header line 17
-                file.write(f"\{str(header_data['fs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['fs_surface_1']['rotation_angle']['comment'])}\n") # header line 18
+                file.write(f"\{str(header_data['fs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['fs_surface_1']['angular_filtering']['comment'])}\n") # header line 22
+                file.write(f"\{str(header_data['fs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['fs_surface_1']['no_of_meridians']['comment'])}\n") # header line 23
+                file.write(f"\{str(header_data['fs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['fs_surface_1']['rotation_angle']['comment'])}\n") # header line 24
             else:
-                file.write(f"{str(header_data['fs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['fs_surface_1']['angular_filtering']['comment'])}\n") # header line 16
-                file.write(f"{str(header_data['fs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['fs_surface_1']['no_of_meridians']['comment'])}\n") # header line 17
-                file.write(f"{str(header_data['fs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['fs_surface_1']['rotation_angle']['comment'])}\n") # header line 18
+                file.write(f"{str(header_data['fs_surface_1']['angular_filtering']['value']):<20}\\ {str(header_data['fs_surface_1']['angular_filtering']['comment'])}\n") # header line 22
+                file.write(f"{str(header_data['fs_surface_1']['no_of_meridians']['value']):<20}\\ {str(header_data['fs_surface_1']['no_of_meridians']['comment'])}\n") # header line 23
+                file.write(f"{str(header_data['fs_surface_1']['rotation_angle']['value']):<20}\\ {str(header_data['fs_surface_1']['rotation_angle']['comment'])}\n") # header line 24
             file.write(f"\\ --- radial definition ---\n") # header line 19
             for n in range(meridional_line_count):
                 meridian = meridians[n]
