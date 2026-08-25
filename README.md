@@ -254,6 +254,7 @@ The ALM runtime environment uses:
 * locally installed `oiol2`
 * launcher batch script
 * Microsoft Visual C++ Redistributable for `numpy`
+* Reconfigured `XASPFRNT.TPL` file in the ALM folder on the DAC PC (see `docs/ALM_with_laser_set-up.md`)
 
 ---
 
