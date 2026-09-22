@@ -1,0 +1,35 @@
+007 SIDE                           RIGHT
+A10 WO Num                         09703509
+A11 SO Num                         12915703
+060 BC Value for RGPUI             8.7
+080 Power 1                        0.50
+110 Diameter                       10.5
+120 Printed Thick                  0.20
+164 PC2 W                          8.7
+165 PC 2 Flat                      .600
+166 PC 2 Steep                     .600
+167 PC3 W                          33
+168 PC 3 Flat                      33
+169 PC 3 Steep                     0.19
+173 PC4 W                          6.0
+174 PC 4 Flat                      N NO
+175 PC 4 Steep                     *Calculated
+201 PC5 W                          1.000
+202 PC5                            1.000
+203 PC6 W                          0
+230 Vertex                         1
+325 Edge Thickness________________ .12
+598 Original Sales Order Number___ 12907102
+617 Index of Refraction___________ 1.438
+633 Lab Lens Material_____________ 471
+635 OE Lens Material______________ 389
+638 JDE Item Number_______________ 733
+646 Lab Lens Type Code____________ 45
+650 LUNARA                         LUNARA
+793 DAC Side______________________ 2
+964 Design Code___________________ XPF
+985 File Status___________________ 0
+B10 Lathe Status                   1
+L75 OD / OS                        OD
+L80 Job Tray Number                6053
+L90 LOGIN TIMESTAMP                09-18-2026 15:37:53
